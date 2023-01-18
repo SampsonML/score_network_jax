@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
+# In[6]:
 
 
 """
@@ -12,6 +12,13 @@ Code taken primarily from https://github.com/yang-song/score_sde/
 Modifications by Matt Sampson include:
     - Minor updates to use the latest version of flax
 """
+
+# temporary fix for flax.optim issue:
+# https://stackoverflow.com/questions/73488909/attributeerror-module-flax-has-no-attribute-optim
+#!pip uninstall flax -y
+#!pip install flax==0.5.1
+# proper fix here (https://flax.readthedocs.io/en/latest/advanced_topics/optax_update_guide.html)
+# not yet implemented
 
 get_ipython().run_line_magic('matplotlib', 'inline')
 import functools
@@ -32,7 +39,7 @@ import flax
 Path("outputs").mkdir(exist_ok=True)
 
 
-# In[12]:
+# In[7]:
 
 
 """Common layers for defining score networks.
@@ -99,19 +106,19 @@ def ncsn_conv3x3(x, out_planes, stride=1, bias=True, dilation=1, init_scale=1.):
 
 def ncsn_conv3x3(x, out_planes, stride=1, bias=True, dilation=1, init_scale=1.):
   """3x3 convolution with PyTorch initialization. Same as NCSNv1/NCSNv2."""
-  init_scale = 1e-10 if init_scale == 0 else init_scale
   kernel_init = jnn.initializers.variance_scaling(1 / 3 * init_scale, 'fan_in',
                                                   'uniform')
   kernel_shape = (3, 3) + (x.shape[-1], out_planes)
-  bias_init = lambda key, shape: kernel_init(key, kernel_shape)[0, 0, 0, :]
+  #bias_init = lambda key, shape: kernel_init(key, kernel_shape)[0, 0, 0, :]
+  bias_init = jnn.initializers.zeros
   output = nn.Conv(out_planes,
                    kernel_size=(3, 3),
                    strides=(stride, stride),
                    padding='SAME',
-                   use_bias= False, #bias,
+                   use_bias= bias,
                    kernel_dilation=(dilation, dilation),
-                   kernel_init=kernel_init)(x) #,
-                   #bias_init=bias_init)(x)
+                   kernel_init=kernel_init,
+                   bias_init=bias_init)(x)
   return output
 
 # How to call bias_init search this and see - flax outdated thing
@@ -345,7 +352,7 @@ class ConditionalResidualBlock(nn.Module):
     return h + shortcut
 
 
-# In[14]:
+# In[8]:
 
 
 """ 
@@ -370,24 +377,20 @@ class NCSNv2(nn.Module):
     sigma_begin   = 1                     # noise scale max
     sigma_end     = 1e-2                  # noise scale min
     num_scales    = 10                     # number of noise scales
-    sigmas = np.exp(np.linspace(np.log(sigma_begin), 
-                      np.log(sigma_end), num_scales))
+    sigmas        = jnp.exp(jnp.linspace(jnp.log(sigma_end), 
+                              jnp.log(sigma_begin),num_scales))
     im_size       = 32                    # image size
     nf            = 128                   # number of filters
     act           = nn.elu                # activation function
-    normalizer    = InstanceNorm2dPlus()  # normalization function
+    normalizer    = InstanceNorm2dPlus    # normalization function
     interpolation = 'bilinear'            # interpolation method for upsample
     
     # data already centered
     h = x
-
-    # --------------------------- #
-    #    MATT: testing things     #
-    print(f'size of h: {h.shape}')
-    # --------------------------- #
     
     # Begin the U-Net
     h = conv3x3(h, nf, stride=1, bias=True)
+    print(f'size of h: {h.shape}')
     # ResNet backbone
     h = ResidualBlock(nf, resample=None, act=act, normalization=normalizer)(h)
     layer1 = ResidualBlock(nf, resample=None, act=act, normalization=normalizer)(h)
@@ -435,7 +438,7 @@ class NCSNv2(nn.Module):
     return h / used_sigmas
 
 
-# In[ ]:
+# In[9]:
 
 
 """
@@ -451,7 +454,7 @@ def anneal_dsm_score_estimation(model, samples, labels, sigmas, key, anneal_powe
     return loss.mean(axis=0)
 
 
-# In[15]:
+# In[10]:
 
 
 """ 

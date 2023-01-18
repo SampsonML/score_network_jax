@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[6]:
+# In[11]:
 
 
 """
@@ -39,7 +39,7 @@ import flax
 Path("outputs").mkdir(exist_ok=True)
 
 
-# In[7]:
+# In[12]:
 
 
 """Common layers for defining score networks.
@@ -352,7 +352,7 @@ class ConditionalResidualBlock(nn.Module):
     return h + shortcut
 
 
-# In[8]:
+# In[21]:
 
 
 """ 
@@ -390,7 +390,7 @@ class NCSNv2(nn.Module):
     
     # Begin the U-Net
     h = conv3x3(h, nf, stride=1, bias=True)
-    print(f'size of h: {h.shape}')
+
     # ResNet backbone
     h = ResidualBlock(nf, resample=None, act=act, normalization=normalizer)(h)
     layer1 = ResidualBlock(nf, resample=None, act=act, normalization=normalizer)(h)
@@ -438,7 +438,7 @@ class NCSNv2(nn.Module):
     return h / used_sigmas
 
 
-# In[9]:
+# In[22]:
 
 
 """
@@ -454,7 +454,7 @@ def anneal_dsm_score_estimation(model, samples, labels, sigmas, key, anneal_powe
     return loss.mean(axis=0)
 
 
-# In[10]:
+# In[25]:
 
 
 """ 
@@ -470,23 +470,23 @@ for testing before moving to the full scale on GPU HPC.
 box_size = 31
 dataname = 'sources_box' + str(box_size) + '.npy'     
 dataset = np.load(dataname)
-#plt.imshow(dataset[2], cmap='gray')
-#plt.show()
 
 # perform zero-padding of the data to get desired dimensions
 data_padded_31 = []
-#dataset = np.resize(dataset,(1989,96,96))
 for i in range(len(dataset)):
     data_padded_tmp = np.pad(dataset[i], ((0,1),(0,1)), 'constant')
     data_padded_31.append(data_padded_tmp)
 dataset = np.array( data_padded_31 )
 
+# convert dataset to jax array
+data_jax = jnp.array(dataset)
+
 # define noise levels 
 sigma_begin = 1
 sigma_end   = 0.01
 num_scales  = 10
-sigmas      = np.exp(np.linspace(np.log(sigma_begin), 
-                        np.log(sigma_end), num_scales))
+sigmas      = jnp.exp(jnp.linspace(jnp.log(sigma_end), 
+                        jnp.log(sigma_begin),num_scales))
 
 # score model params
 n_epochs    = 50                                    # number of epochs
@@ -521,14 +521,16 @@ def train_step(model, optimizer, rng, samples, labels, sigmas):
 key_seq = jax.random.PRNGKey(0)
 for t in tqdm(range(steps + 1)):
 
-    idx = np.random.randint(0, len(dataset))
-    labels = np.random.randint(0, len(sigmas), size=len(dataset[idx])) # size for 32 by 32
+    #idx = np.random.randint(0, len(dataset))
+    #labels = np.random.randint(0, len(sigmas), size=len(dataset[idx])) # size for 32 by 32
+    idx = jax.random.randint(key_seq, (1,), minval=0, maxval=len(data_jax), dtype=jnp.int32)
+    labels = jax.random.randint(key_seq, (len(data_jax[idx]),), minval=0, maxval=len(sigmas), dtype=jnp.int32)
     model, optimizer, key_seq = train_step(model, optimizer, 
-                                key_seq, dataset[idx], labels, sigmas[labels])
+                                key_seq, data_jax[idx], labels, sigmas[labels])
 
     if ((t % (steps // 5)) == 0):
-        labels = np.random.randint(0, len(sigmas), size=len(dataset[0]))
-        print(anneal_dsm_score_estimation(model, dataset[0], labels, sigmas[labels], rng))
+        labels = jax.random.randint(key_seq, (len(data_jax[0]),), minval=0, maxval=len(sigmas), dtype=jnp.int32)
+        print(anneal_dsm_score_estimation(model, data_jax[0], labels, sigmas[labels], key_seq))
 # -------------------- #
 # end of training loop #       
 # -------------------- #

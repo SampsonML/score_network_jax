@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[10]:
+# In[11]:
 
 
 """
@@ -32,7 +32,7 @@ import flax
 Path("outputs").mkdir(exist_ok=True)
 
 
-# In[11]:
+# In[12]:
 
 
 """Common layers for defining score networks.
@@ -77,9 +77,10 @@ def ncsn_conv1x1(x, out_planes, stride=1, bias=True, dilation=1, init_scale=1.):
                    bias_init=bias_init)(x)
   return output
 
-
+""" Old version of ncsn_conv3x3 """
+"""
 def ncsn_conv3x3(x, out_planes, stride=1, bias=True, dilation=1, init_scale=1.):
-  """3x3 convolution with PyTorch initialization. Same as NCSNv1/NCSNv2."""
+  # 3x3 convolution with PyTorch initialization. Same as NCSNv1/NCSNv2.
   init_scale = 1e-10 if init_scale == 0 else init_scale
   kernel_init = jnn.initializers.variance_scaling(1 / 3 * init_scale, 'fan_in',
                                                   'uniform')
@@ -93,6 +94,24 @@ def ncsn_conv3x3(x, out_planes, stride=1, bias=True, dilation=1, init_scale=1.):
                    kernel_dilation=(dilation, dilation),
                    kernel_init=kernel_init,
                    bias_init=bias_init)(x)
+  return output
+"""
+
+def ncsn_conv3x3(x, out_planes, stride=1, bias=True, dilation=1, init_scale=1.):
+  """3x3 convolution with PyTorch initialization. Same as NCSNv1/NCSNv2."""
+  init_scale = 1e-10 if init_scale == 0 else init_scale
+  kernel_init = jnn.initializers.variance_scaling(1 / 3 * init_scale, 'fan_in',
+                                                  'uniform')
+  kernel_shape = (3, 3) + (x.shape[-1], out_planes)
+  bias_init = lambda key, shape: kernel_init(key, kernel_shape)[0, 0, 0, :]
+  output = nn.Conv(out_planes,
+                   kernel_size=(3, 3),
+                   strides=(stride, stride),
+                   padding='SAME',
+                   use_bias= False, #bias,
+                   kernel_dilation=(dilation, dilation),
+                   kernel_init=kernel_init)(x) #,
+                   #bias_init=bias_init)(x)
   return output
 
 # How to call bias_init search this and see - flax outdated thing
@@ -326,23 +345,7 @@ class ConditionalResidualBlock(nn.Module):
     return h + shortcut
 
 
-# In[12]:
-
-
-"""
-The loss function for a noise dependent score model from Song+2020
-"""
-def anneal_dsm_score_estimation(model, samples, labels, sigmas, key, anneal_power=2.):
-    sigmas = sigmas[..., None]
-    noise = jax.random.normal(key, samples.shape)
-    perturbed_samples = samples + noise * sigmas
-    target = -noise / sigmas
-    scores = model(perturbed_samples, labels)
-    loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * sigmas.squeeze() ** anneal_power
-    return loss.mean(axis=0)
-
-
-# In[13]:
+# In[14]:
 
 
 """ 
@@ -432,9 +435,23 @@ class NCSNv2(nn.Module):
     return h / used_sigmas
 
 
-# Now we train the model
+# In[ ]:
 
-# In[14]:
+
+"""
+The loss function for a noise dependent score model from Song+2020
+"""
+def anneal_dsm_score_estimation(model, samples, labels, sigmas, key, anneal_power=2.):
+    sigmas = sigmas[..., None]
+    noise = jax.random.normal(key, samples.shape)
+    perturbed_samples = samples + noise * sigmas
+    target = -noise / sigmas
+    scores = model(perturbed_samples, labels)
+    loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * sigmas.squeeze() ** anneal_power
+    return loss.mean(axis=0)
+
+
+# In[15]:
 
 
 """ 

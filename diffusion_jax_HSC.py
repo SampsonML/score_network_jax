@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
+# In[91]:
 
 
 """
@@ -39,7 +39,7 @@ import flax
 Path("outputs").mkdir(exist_ok=True)
 
 
-# In[12]:
+# In[92]:
 
 
 """Common layers for defining score networks.
@@ -352,7 +352,7 @@ class ConditionalResidualBlock(nn.Module):
     return h + shortcut
 
 
-# In[21]:
+# In[93]:
 
 
 """ 
@@ -371,7 +371,8 @@ class NCSNv2(nn.Module):
   #config: ml_collections.ConfigDict
 
   @nn.compact
-  def __call__(self, x, labels, train=True):
+  #def __call__(self, x, labels, train=True):
+  def __call__(self, x, labels):
     
     # hard coding configs for now
     sigma_begin   = 1                     # noise scale max
@@ -433,19 +434,38 @@ class NCSNv2(nn.Module):
     h = conv3x3(h, x.shape[-1])
 
     # normlising the output
+    print(f'shape of sigmas: {sigmas.shape}')
+    print(f'shape of h: {h.shape}')
+    print(f'shape of labels: {labels.shape}')
     used_sigmas = sigmas[labels].reshape(
         (x.shape[0], *([1] * len(x.shape[1:]))))
+    
+    print('here after scaling')
     return h / used_sigmas
 
 
-# In[22]:
+
+
+# In[94]:
 
 
 """
 The loss function for a noise dependent score model from Song+2020
 """
-def anneal_dsm_score_estimation(model, samples, labels, sigmas, key, anneal_power=2.):
-    sigmas = sigmas[..., None]
+def anneal_dsm_score_estimation(model, samples, labels, sigmas, key, variables, anneal_power=2.):
+    """
+    Loss function for annealed score estimation
+    -------------------------------------------
+    Inputs: model - the score neural network
+            samples - the samples from the data distribution
+            labels - the noise scale labels
+            sigmas - the noise scales
+            key - the jax random key
+            variables - the model parameters
+    
+    Output: the loss value
+    """
+    model.apply(variables, samples[key], labels, mutable=False)
     noise = jax.random.normal(key, samples.shape)
     perturbed_samples = samples + noise * sigmas
     target = -noise / sigmas
@@ -454,7 +474,7 @@ def anneal_dsm_score_estimation(model, samples, labels, sigmas, key, anneal_powe
     return loss.mean(axis=0)
 
 
-# In[25]:
+# In[114]:
 
 
 """ 
@@ -480,6 +500,8 @@ dataset = np.array( data_padded_31 )
 
 # convert dataset to jax array
 data_jax = jnp.array(dataset)
+# expand dimensions for channel dim
+data_jax = jax.numpy.expand_dims(data_jax, axis=-1)
 
 # define noise levels 
 sigma_begin = 1
@@ -504,13 +526,57 @@ model = NCSNv2()
 variables = model.init({'params': params_rng}, fake_input, fake_label)
 # Variables is a `flax.FrozenDict`. It is immutable and respects functional programming
 init_model_state, initial_params = variables.pop('params')
+
+# TODO: convert to optax - ie updated version for latest jax
+# https://flax.readthedocs.io/en/latest/advanced_topics/optax_update_guide.html
 optimizer = flax.optim.Adam(learning_rate=lr,
                             beta1 = 0.9,
                             eps = 1e-8).create(initial_params)  # create optimizer
 
+
+key_seq = jax.random.PRNGKey(0)
+labels = jax.random.randint(key_seq, (len(data_jax[key_seq]),), minval=0, maxval=len(sigmas), dtype=jnp.int32)
+# parse variables
+test = model.apply(variables, data_jax[key_seq], labels, mutable=False)
+
+# ------------------------ #
+# testing score estimation #
+# ------------------------ #
+gaussian_noise = jax.random.normal(rng, shape=data_jax[key_seq].shape)
+#gaussian_noise = data_jax[key_seq] 
+scores = model.apply(variables, gaussian_noise, labels)
+scores2 = model.apply(variables, data_jax[key_seq], labels)
+fig , ax = plt.subplots(2,2,figsize=(16, 12), facecolor='white',dpi = 70)
+plt.subplots_adjust(wspace=0.01)
+plt.subplot(2,2,1)
+plt.imshow(scores[0], cmap='plasma')
+#plt.colorbar()
+plt.title('Gaussian Noise',fontsize=28,pad=15)
+plt.subplot(2,2,2)
+plt.imshow(scores2[0], cmap='plasma')
+cbar = plt.colorbar()
+cbar.set_label(r'$\nabla_x log \ p(\mathbf{\tilde{x}})$', rotation=270, fontsize = 20,labelpad= 25)
+plt.title('Galaxy',fontsize=28,pad=15)
+plt.ylabel('data')
+
+plt.subplot(2,2,3)
+plt.imshow(gaussian_noise[0], cmap='cividis')
+#plt.colorbar()
+#plt.title('Gaussian Noise',fontsize=28,pad=15)
+plt.subplot(2,2,4)
+plt.imshow(data_jax[key_seq][0], cmap='cividis')
+cbar = plt.colorbar()
+cbar.set_label(r'pixel density', rotation=270, fontsize = 20,labelpad= 25)
+#plt.title('Galaxy',fontsize=28,pad=15)
+# ----------------------------------- #
+
+
+"""
 # ------------- #
 # training loop #
 # ------------- #
+
+# TODO: edit this routine with the new standard of "model.apply()" for running
 @jax.jit
 def train_step(model, optimizer, rng, samples, labels, sigmas):
     rng   = jax.random.PRNGKey(rng) # random number random seed
@@ -521,8 +587,6 @@ def train_step(model, optimizer, rng, samples, labels, sigmas):
 key_seq = jax.random.PRNGKey(0)
 for t in tqdm(range(steps + 1)):
 
-    #idx = np.random.randint(0, len(dataset))
-    #labels = np.random.randint(0, len(sigmas), size=len(dataset[idx])) # size for 32 by 32
     idx = jax.random.randint(key_seq, (1,), minval=0, maxval=len(data_jax), dtype=jnp.int32)
     labels = jax.random.randint(key_seq, (len(data_jax[idx]),), minval=0, maxval=len(sigmas), dtype=jnp.int32)
     model, optimizer, key_seq = train_step(model, optimizer, 
@@ -534,19 +598,20 @@ for t in tqdm(range(steps + 1)):
 # -------------------- #
 # end of training loop #       
 # -------------------- #
+"""
 
 
-# In[ ]:
+# In[104]:
 
 
 # ------------------------ #
 # testing score estimation #
 # ------------------------ #
-gaussian_noise = jax.random.normal(rng, shape=(32,32))
+gaussian_noise = jax.random.normal(rng, shape=data_jax[key_seq].shape)
 galaxy = dataset[1992]
 labels = np.random.randint(0, len(sigmas), (gaussian_noise.shape[0],))
-scores = model(gaussian_noise, labels)
-scores2 = model(galaxy, labels)
+scores = model.apply(variables, gaussian_noise, labels)
+scores2 = model.apply(variables, galaxy, labels)
 fig , ax = plt.subplots(1,2,figsize=(16, 5.5), facecolor='black',dpi = 70)
 plt.subplots_adjust(wspace=0.01)
 plt.subplot(1,2,1)

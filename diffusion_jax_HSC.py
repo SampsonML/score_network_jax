@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[20]:
 
 
 """
@@ -34,7 +34,7 @@ import optax
 Path("outputs").mkdir(exist_ok=True)
 
 
-# In[2]:
+# In[21]:
 
 
 """Common layers for defining score networks.
@@ -322,7 +322,7 @@ class ConditionalResidualBlock(nn.Module):
     return h + shortcut
 
 
-# In[3]:
+# In[22]:
 
 
 """ 
@@ -412,7 +412,7 @@ class NCSNv2(nn.Module):
 
 
 
-# In[4]:
+# In[23]:
 
 
 """
@@ -443,7 +443,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     return loss
 
 
-# In[5]:
+# In[24]:
 
 
 """ 
@@ -455,7 +455,8 @@ for testing before moving to the full scale on GPU HPC.
 # model setup #
 # ----------- #
 
-# load in data  
+# load in data  low res
+"""
 box_size = 31
 dataname = 'sources_box' + str(box_size) + '.npy'     
 dataset = np.load(dataname)
@@ -466,6 +467,19 @@ for i in range(len(dataset)):
     data_padded_tmp = np.pad(dataset[i], ((0,1),(0,1)), 'constant')
     data_padded_31.append(data_padded_tmp)
 dataset = np.array( data_padded_31 )
+"""
+
+# load in data  high res
+box_size = 61
+dataname = 'sources_box' + str(box_size) + '.npy'     
+dataset = np.load(dataname)
+
+# perform zero-padding of the data to get desired dimensions
+data_padded_61 = []
+for i in range(len(dataset)):
+    data_padded_tmp = np.pad(dataset[i], ((1,2),(1,2)), 'constant')
+    data_padded_61.append(data_padded_tmp)
+dataset = np.array( data_padded_61 )
 
 # convert dataset to jax array
 data_jax = jnp.array(dataset)
@@ -495,7 +509,7 @@ variables = model.init({'params': params_rng}, fake_input, fake_label)
 init_model_state, initial_params = variables.pop('params')
 
 
-# In[6]:
+# In[25]:
 
 
 # ------------------------------ #
@@ -527,12 +541,14 @@ def plot_evolve(params,sample,step, labels):
     plt.imshow(sample[0], cmap=data_map)
     cbar = plt.colorbar()
     cbar.set_label(r'pixel density', rotation=270, fontsize = 20,labelpad= 25)
+    super_name = 'training step ' + str(step) 
+    plt.suptitle(super_name, fontsize = 40)
     plt.tight_layout()
     save_name = 'score_estimation_pre_training_step_' + str(step) + '.png'
     plt.savefig(save_name,facecolor='white',dpi=300)
 
 
-# In[7]:
+# In[29]:
 
 
 # optax testing bench
@@ -559,16 +575,31 @@ model_state = optimizer.init(params)
 loss_fn = anneal_dsm_score_estimation
 
 # A simple update loop
-for i in range(10):
-  grads = jax.grad(loss_fn)(params, model, samples, labels, sigmas, key_seq)
-  updates, model_state = optimizer.update(grads, model_state)
-  params = optax.apply_updates(params, updates)
-  print(f'loss at step {i}: {loss_fn(params, model, samples, labels, sigmas, key_seq)}')
-  # make plot so see evolution
-  plot_evolve(params, samples, i, labels)
+train = False
+step_num = 40
+if train:
+  loss_vector = np.zeros(step_num)
+  for i in range(step_num):
+    grads = jax.grad(loss_fn)(params, model, samples, labels, sigmas, key_seq)
+    updates, model_state = optimizer.update(grads, model_state)
+    params = optax.apply_updates(params, updates)
+    loss_vector[i] = loss_fn(params, model, samples, labels, sigmas, key_seq)
+    print(f'loss at step {i}: {loss_vector[i]}')
+    # make plot so see evolution
+    plot_evolve(params, samples, i, labels)
+  
+
+fig , ax = plt.subplots(1,1,figsize=(12, 8), facecolor='white',dpi = 70)
+steps = range(0,step_num)
+plt.plot(steps,loss_vector, alpha = 0.75, zorder = 0)
+plt.scatter(steps,loss_vector, zorder = 1)
+plt.xlabel('training steps', fontsize = 30)
+plt.ylabel('loss', fontsize = 30)
+plt.tight_layout()
+plt.savefig('loss_evolution.png',facecolor='white',dpi=300)
 
 
-# In[8]:
+# In[27]:
 
 
 # ------------------------- #

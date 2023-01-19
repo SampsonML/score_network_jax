@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[7]:
 
 
 """
@@ -34,7 +34,7 @@ import optax
 Path("outputs").mkdir(exist_ok=True)
 
 
-# In[2]:
+# In[8]:
 
 
 """Common layers for defining score networks.
@@ -79,26 +79,6 @@ def ncsn_conv1x1(x, out_planes, stride=1, bias=True, dilation=1, init_scale=1.):
                    bias_init=bias_init)(x)
   return output
 
-""" Old version of ncsn_conv3x3 """
-"""
-def ncsn_conv3x3(x, out_planes, stride=1, bias=True, dilation=1, init_scale=1.):
-  # 3x3 convolution with PyTorch initialization. Same as NCSNv1/NCSNv2.
-  init_scale = 1e-10 if init_scale == 0 else init_scale
-  kernel_init = jnn.initializers.variance_scaling(1 / 3 * init_scale, 'fan_in',
-                                                  'uniform')
-  kernel_shape = (3, 3) + (x.shape[-1], out_planes)
-  bias_init = lambda key, shape: kernel_init(key, kernel_shape)[0, 0, 0, :]
-  output = nn.Conv(out_planes,
-                   kernel_size=(3, 3),
-                   strides=(stride, stride),
-                   padding='SAME',
-                   use_bias=bias,
-                   kernel_dilation=(dilation, dilation),
-                   kernel_init=kernel_init,
-                   bias_init=bias_init)(x)
-  return output
-"""
-
 def ncsn_conv3x3(x, out_planes, stride=1, bias=True, dilation=1, init_scale=1.):
   """3x3 convolution with PyTorch initialization. Same as NCSNv1/NCSNv2."""
   kernel_init = jnn.initializers.variance_scaling(1 / 3 * init_scale, 'fan_in',
@@ -115,11 +95,6 @@ def ncsn_conv3x3(x, out_planes, stride=1, bias=True, dilation=1, init_scale=1.):
                    kernel_init=kernel_init,
                    bias_init=bias_init)(x)
   return output
-
-# How to call bias_init search this and see - flax outdated thing
-# Make a github repo for this
-# Get much more familiar with github
-# add a requirement.txt to show which versions of modules are needed
 
 # ---------------------------------------------------------------- #
 # Functions below are ported over from the NCSNv1/NCSNv2 codebase: #
@@ -347,7 +322,7 @@ class ConditionalResidualBlock(nn.Module):
     return h + shortcut
 
 
-# In[3]:
+# In[9]:
 
 
 """ 
@@ -437,7 +412,7 @@ class NCSNv2(nn.Module):
 
 
 
-# In[4]:
+# In[10]:
 
 
 """
@@ -468,7 +443,7 @@ def anneal_dsm_score_estimation(model, samples, labels, sigmas, key, variables):
     return loss
 
 
-# In[5]:
+# In[11]:
 
 
 """ 
@@ -558,7 +533,7 @@ plt.savefig('score_estimation_pre_training.png',facecolor='white',dpi=300)
 # ----------------------------------- #
 
 
-# In[6]:
+# In[12]:
 
 
 # define optimiser using latest flax standards

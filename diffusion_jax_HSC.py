@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[20]:
+# In[1]:
 
 
 """
@@ -34,7 +34,7 @@ import optax
 Path("outputs").mkdir(exist_ok=True)
 
 
-# In[21]:
+# In[2]:
 
 
 """Common layers for defining score networks.
@@ -322,7 +322,7 @@ class ConditionalResidualBlock(nn.Module):
     return h + shortcut
 
 
-# In[22]:
+# In[3]:
 
 
 """ 
@@ -412,7 +412,7 @@ class NCSNv2(nn.Module):
 
 
 
-# In[23]:
+# In[4]:
 
 
 """
@@ -443,7 +443,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     return loss
 
 
-# In[24]:
+# In[5]:
 
 
 """ 
@@ -509,7 +509,7 @@ variables = model.init({'params': params_rng}, fake_input, fake_label)
 init_model_state, initial_params = variables.pop('params')
 
 
-# In[25]:
+# In[6]:
 
 
 # ------------------------------ #
@@ -548,7 +548,7 @@ def plot_evolve(params,sample,step, labels):
     plt.savefig(save_name,facecolor='white',dpi=300)
 
 
-# In[29]:
+# In[7]:
 
 
 # optax testing bench
@@ -575,18 +575,21 @@ model_state = optimizer.init(params)
 loss_fn = anneal_dsm_score_estimation
 
 # A simple update loop
-train = False
-step_num = 40
+train    = True
+plot     = False
+step_num = 50
+from tqdm import tqdm
+
 if train:
   loss_vector = np.zeros(step_num)
-  for i in range(step_num):
+  for i in tqdm(range(step_num), desc='training model'):
     grads = jax.grad(loss_fn)(params, model, samples, labels, sigmas, key_seq)
     updates, model_state = optimizer.update(grads, model_state)
     params = optax.apply_updates(params, updates)
     loss_vector[i] = loss_fn(params, model, samples, labels, sigmas, key_seq)
-    print(f'loss at step {i}: {loss_vector[i]}')
+    #print(f'loss at step {i}: {loss_vector[i]}')
     # make plot so see evolution
-    plot_evolve(params, samples, i, labels)
+    if (plot): plot_evolve(params, samples, i, labels)
   
 
 fig , ax = plt.subplots(1,1,figsize=(12, 8), facecolor='white',dpi = 70)
@@ -594,45 +597,76 @@ steps = range(0,step_num)
 plt.plot(steps,loss_vector, alpha = 0.75, zorder = 0)
 plt.scatter(steps,loss_vector, zorder = 1)
 plt.xlabel('training steps', fontsize = 30)
-plt.ylabel('loss', fontsize = 30)
+plt.ylabel('loss (arb)', fontsize = 30)
 plt.tight_layout()
 plt.savefig('loss_evolution.png',facecolor='white',dpi=300)
 
 
-# In[27]:
+# In[ ]:
 
 
 # ------------------------- #
 # langevin dynamic sampling #
 # ------------------------- #
-# TODO: port to jax
+# TODO: port to jax in progress
 
-def anneal_Langevin_dynamics(x_mod, scorenet, sigmas, n_steps_each=100, step_lr=0.000008,
-                             final_only=False, verbose=False, denoise=True):
+def anneal_Langevin_dynamics(x_mod, scorenet, params, sigmas, n_steps_each=100, 
+                            step_lr=0.000008,denoise=True):
     images = []
     scores  = []
 
-    for c, sigma in enumerate(sigmas):
-        labels = torch.ones(x_mod.shape[0], device=x_mod.device) * c
-        labels = labels.long()
+    for i in tqdm(range(len(sigmas)), desc= 'generating galaxy'):
+        labels = jax.numpy.ones(x_mod.shape[0],dtype=np.int8) * i
+        sigma = sigmas[i]
         step_size = step_lr * (sigma / sigmas[-1]) ** 2
-        step_size_cpu = step_size.to('cpu') 
         for s in range(n_steps_each):
-            grad = scorenet(x_mod, labels)
-            scores.append(grad.to('cpu'))
-            noise = torch.randn_like(x_mod)
-            grad_norm = torch.norm(grad.view(grad.shape[0], -1), dim=-1).mean()
-            noise_norm = torch.norm(noise.view(noise.shape[0], -1), dim=-1).mean()
-            x_mod = x_mod + step_size_cpu * grad + noise * np.sqrt(step_size_cpu * 2)
-
-            if not final_only:
-                images.append(x_mod.to('cpu'))
+            grad = scorenet.apply({'params' : params}, x_mod, labels)
+            scores.append(grad)
+            noise = jax.random.normal(rng, shape=x_mod.shape)
+            x_mod = x_mod + step_size * grad + noise * np.sqrt(step_size * 2)
+        images.append(x_mod)
 
     if denoise:
-        last_noise = (len(sigmas) - 1) * torch.ones(x_mod.shape[0], device=x_mod.device)
-        last_noise = last_noise.long()
-        x_mod = x_mod + sigmas[-1] ** 2 * scorenet(x_mod, last_noise)
-        images.append(x_mod.to('cpu'))
+        last_noise = (len(sigmas) - 1) * jax.numpy.ones(x_mod.shape[0], dtype=np.int8)
+        last_grad = scorenet.apply({'params' : params}, x_mod, last_noise)
+        x_mod = x_mod + sigmas[-1] ** 2 * last_noise
+        images.append(x_mod)
 
     return images, scores
+
+
+# In[ ]:
+
+
+# ---------------- #
+# testing sampling #
+# ---------------- #
+key_seq = jax.random.PRNGKey(0)
+samples = data_jax[key_seq]
+sigmas      = jnp.exp(jnp.linspace(jnp.log(sigma_end), 
+                        jnp.log(sigma_begin),num_scales))
+gaussian_noise = jax.random.normal(key_seq, shape=samples.shape)
+images, scores = anneal_Langevin_dynamics(  gaussian_noise, 
+                                            model, 
+                                            params, 
+                                            sigmas, 
+                                            n_steps_each=100, 
+                                            denoise=False  )
+
+
+# In[ ]:
+
+
+images_array = np.array(images)
+print(np.shape( images_array ))
+#plt.imshow(images[200][0], cmap=data_map)
+#plt.show()
+
+fig , ax = plt.subplots(2,5,figsize=(16, 7), facecolor='white',dpi = 70)
+for i in range(10):
+    plt.subplot(2,5,i + 1)
+    name = 'langevin step ' + str(i)
+    plt.title(name, fontsize = 20)
+    plt.imshow(images[0][i * 5], cmap=data_map)
+plt.show()
 

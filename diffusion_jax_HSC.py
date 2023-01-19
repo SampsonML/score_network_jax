@@ -350,6 +350,7 @@ class NCSNv2(nn.Module):
     num_scales    = 10                     # number of noise scales
     sigmas        = jnp.exp(jnp.linspace(jnp.log(sigma_end), 
                               jnp.log(sigma_begin),num_scales))
+    sigmas = jax.numpy.flip(sigmas)
     im_size       = 32                    # image size
     nf            = 128                   # number of filters
     act           = nn.elu                # activation function
@@ -492,6 +493,7 @@ sigma_end   = 0.01
 num_scales  = 10
 sigmas      = jnp.exp(jnp.linspace(jnp.log(sigma_end), 
                         jnp.log(sigma_begin),num_scales))
+sigmas = jax.numpy.flip(sigmas)
 
 # score model params
 n_epochs    = 50                                    # number of epochs
@@ -557,6 +559,7 @@ key_seq = jax.random.PRNGKey(0)
 samples = data_jax[key_seq]
 sigmas      = jnp.exp(jnp.linspace(jnp.log(sigma_end), 
                         jnp.log(sigma_begin),num_scales))
+sigmas = jax.numpy.flip(sigmas)
 labels = jax.random.randint(key_seq, (len(data_jax[key_seq]),), minval=0, maxval=len(sigmas), dtype=jnp.int32)
 
 # define optimiser using latest flax standards
@@ -577,7 +580,7 @@ loss_fn = anneal_dsm_score_estimation
 # A simple update loop
 train    = True
 plot     = False
-step_num = 50
+step_num = 20
 from tqdm import tqdm
 
 if train:
@@ -602,40 +605,44 @@ plt.tight_layout()
 plt.savefig('loss_evolution.png',facecolor='white',dpi=300)
 
 
-# In[ ]:
+# In[37]:
 
 
 # ------------------------- #
 # langevin dynamic sampling #
 # ------------------------- #
-# TODO: port to jax in progress
+# TODO: port to jax in progress - testing 
 
 def anneal_Langevin_dynamics(x_mod, scorenet, params, sigmas, n_steps_each=100, 
                             step_lr=0.000008,denoise=True):
     images = []
     scores  = []
 
-    for i in tqdm(range(len(sigmas)), desc= 'generating galaxy'):
-        labels = jax.numpy.ones(x_mod.shape[0],dtype=np.int8) * i
-        sigma = sigmas[i]
+    #for i in tqdm(range(len(sigmas)), desc= 'generating galaxy'):
+    for c, sigma in enumerate(sigmas):
+        labels = jax.numpy.ones(x_mod.shape[0],dtype=np.int8) * c
         step_size = step_lr * (sigma / sigmas[-1]) ** 2
-        for s in range(n_steps_each):
+        desc = 'sampling at noise level: ' + str(c + 1) + ' / ' + str(len(sigmas))
+        for s in tqdm(range(n_steps_each),desc=desc):
             grad = scorenet.apply({'params' : params}, x_mod, labels)
-            scores.append(grad)
             noise = jax.random.normal(rng, shape=x_mod.shape)
             x_mod = x_mod + step_size * grad + noise * np.sqrt(step_size * 2)
-        images.append(x_mod)
+            # store the progress per step
+            if (c == len(sigmas) - 1):
+                images.append(x_mod)
+                scores.append(grad)
 
     if denoise:
         last_noise = (len(sigmas) - 1) * jax.numpy.ones(x_mod.shape[0], dtype=np.int8)
         last_grad = scorenet.apply({'params' : params}, x_mod, last_noise)
-        x_mod = x_mod + sigmas[-1] ** 2 * last_noise
+        x_mod = x_mod + sigmas[-1] ** 2 * last_grad
         images.append(x_mod)
+        scores.append(last_grad)
 
     return images, scores
 
 
-# In[ ]:
+# In[38]:
 
 
 # ---------------- #
@@ -645,28 +652,30 @@ key_seq = jax.random.PRNGKey(0)
 samples = data_jax[key_seq]
 sigmas      = jnp.exp(jnp.linspace(jnp.log(sigma_end), 
                         jnp.log(sigma_begin),num_scales))
+sigmas = jax.numpy.flip(sigmas)
 gaussian_noise = jax.random.normal(key_seq, shape=samples.shape)
 images, scores = anneal_Langevin_dynamics(  gaussian_noise, 
                                             model, 
                                             params, 
                                             sigmas, 
-                                            n_steps_each=100, 
-                                            denoise=False  )
+                                            n_steps_each=5, 
+                                            denoise=True  )
 
 
-# In[ ]:
+# In[39]:
 
 
 images_array = np.array(images)
-print(np.shape( images_array ))
-#plt.imshow(images[200][0], cmap=data_map)
-#plt.show()
+scores_array = np.array(scores)
+for i in range(len(scores_array)):
+    print(f'square sum of scores at step {i+1}: {np.sum(scores_array[i][0]**2)}')
+
 
 fig , ax = plt.subplots(2,5,figsize=(16, 7), facecolor='white',dpi = 70)
 for i in range(10):
     plt.subplot(2,5,i + 1)
     name = 'langevin step ' + str(i)
     plt.title(name, fontsize = 20)
-    plt.imshow(images[0][i * 5], cmap=data_map)
+    plt.imshow(images_array[i][0], cmap=data_map)
 plt.show()
 

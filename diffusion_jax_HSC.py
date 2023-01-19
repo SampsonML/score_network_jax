@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[7]:
+# In[1]:
 
 
 """
@@ -34,7 +34,7 @@ import optax
 Path("outputs").mkdir(exist_ok=True)
 
 
-# In[8]:
+# In[2]:
 
 
 """Common layers for defining score networks.
@@ -322,7 +322,7 @@ class ConditionalResidualBlock(nn.Module):
     return h + shortcut
 
 
-# In[9]:
+# In[3]:
 
 
 """ 
@@ -412,13 +412,13 @@ class NCSNv2(nn.Module):
 
 
 
-# In[10]:
+# In[4]:
 
 
 """
 The loss function for a noise dependent score model from Song+2020
 """
-def anneal_dsm_score_estimation(model, samples, labels, sigmas, key, variables):
+def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     """
     Loss function for annealed score estimation
     -------------------------------------------
@@ -435,7 +435,7 @@ def anneal_dsm_score_estimation(model, samples, labels, sigmas, key, variables):
     noise = jax.random.normal(key, samples.shape)
     perturbed_samples = samples + noise * used_sigmas
     target = -noise / used_sigmas**2
-    scores = model.apply(variables, perturbed_samples, labels, mutable=False)
+    scores = model.apply({'params': params}, perturbed_samples, labels)
     #losses = jnp.square(score - target)
     loss_1 = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) #* used_sigmas.squeeze() ** anneal_power
     loss = loss_1 * used_sigmas**2 
@@ -443,7 +443,7 @@ def anneal_dsm_score_estimation(model, samples, labels, sigmas, key, variables):
     return loss
 
 
-# In[11]:
+# In[5]:
 
 
 """ 
@@ -493,14 +493,8 @@ params_rng, dropout_rng = jax.random.split(rng)
 model = NCSNv2()
 variables = model.init({'params': params_rng}, fake_input, fake_label)
 init_model_state, initial_params = variables.pop('params')
-optimizer = optax.adam(learning_rate=lr, 
-                       b1=0.9, 
-                       b2=0.999, 
-                       eps=1e-08, 
-                       eps_root=0.0, 
-                       mu_dtype=None).init(initial_params)  # create optimizer
 
-# create random key and noise labels fro testing
+# create random key and noise labels for testing
 key_seq = jax.random.PRNGKey(0)
 labels = jax.random.randint(key_seq, (len(data_jax[key_seq]),), minval=0, maxval=len(sigmas), dtype=jnp.int32)
 
@@ -533,8 +527,16 @@ plt.savefig('score_estimation_pre_training.png',facecolor='white',dpi=300)
 # ----------------------------------- #
 
 
-# In[12]:
+# In[22]:
 
+
+# optax testing bench
+# re-create random key and noise labels for testing
+key_seq = jax.random.PRNGKey(0)
+samples = data_jax[key_seq]
+sigmas      = jnp.exp(jnp.linspace(jnp.log(sigma_end), 
+                        jnp.log(sigma_begin),num_scales))
+labels = jax.random.randint(key_seq, (len(data_jax[key_seq]),), minval=0, maxval=len(sigmas), dtype=jnp.int32)
 
 # define optimiser using latest flax standards
 optimizer = optax.adam(learning_rate=lr, 
@@ -542,33 +544,20 @@ optimizer = optax.adam(learning_rate=lr,
                        b2=0.999, 
                        eps=1e-08, 
                        eps_root=0.0, 
-                       mu_dtype=None).init(initial_params)  # create optimizer
+                       mu_dtype=None) 
+
+# initialise model state
+params = initial_params
+model_state = optimizer.init(params)
 
 # name loss function
 loss_fn = anneal_dsm_score_estimation
 
-
-def fit(params: optax.Params, optimizer: optax.GradientTransformation) -> optax.Params:
-  opt_state = optimizer.init(params)
-
-  @jax.jit
-  def step(params, opt_state, batch, labels):
-    loss_value, grads = jax.value_and_grad(loss)(params, batch, labels)
-    updates, opt_state = optimizer.update(grads, opt_state, params)
-    params = optax.apply_updates(params, updates)
-    return params, opt_state, loss_value
-
-  for i, (batch, labels) in enumerate(zip(TRAINING_DATA, LABELS)):
-    params, opt_state, loss_value = step(params, opt_state, batch, labels)
-    if i % 100 == 0:
-      print(f'step {i}, loss: {loss_value}')
-
-  return params
-
-# Finally, we can fit our parametrized function using the Adam optimizer
-# provided by optax.
-optimizer = optax.adam(learning_rate=1e-2)
-params = fit(initial_params, optimizer)
+# A simple update loop
+for _ in range(10):
+  grads = jax.grad(loss_fn)({'params' : params}, model, samples, labels, sigmas, key_seq)
+  updates, model_state = optimizer.update(grads, model_state)
+  params = optax.apply_updates(params, updates)
 
 
 # In[ ]:

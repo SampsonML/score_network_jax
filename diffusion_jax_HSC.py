@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[91]:
+# In[352]:
 
 
 """
@@ -39,7 +39,7 @@ import flax
 Path("outputs").mkdir(exist_ok=True)
 
 
-# In[92]:
+# In[353]:
 
 
 """Common layers for defining score networks.
@@ -352,7 +352,7 @@ class ConditionalResidualBlock(nn.Module):
     return h + shortcut
 
 
-# In[93]:
+# In[354]:
 
 
 """ 
@@ -434,25 +434,21 @@ class NCSNv2(nn.Module):
     h = conv3x3(h, x.shape[-1])
 
     # normlising the output
-    print(f'shape of sigmas: {sigmas.shape}')
-    print(f'shape of h: {h.shape}')
-    print(f'shape of labels: {labels.shape}')
     used_sigmas = sigmas[labels].reshape(
         (x.shape[0], *([1] * len(x.shape[1:]))))
     
-    print('here after scaling')
     return h / used_sigmas
 
 
 
 
-# In[94]:
+# In[355]:
 
 
 """
 The loss function for a noise dependent score model from Song+2020
 """
-def anneal_dsm_score_estimation(model, samples, labels, sigmas, key, variables, anneal_power=2.):
+def anneal_dsm_score_estimation(model, samples, labels, sigmas, key, variables):
     """
     Loss function for annealed score estimation
     -------------------------------------------
@@ -465,16 +461,19 @@ def anneal_dsm_score_estimation(model, samples, labels, sigmas, key, variables, 
     
     Output: the loss value
     """
-    model.apply(variables, samples[key], labels, mutable=False)
+    used_sigmas = sigmas[labels].reshape((samples.shape[0], *([1] * len(samples.shape[1:]))))
     noise = jax.random.normal(key, samples.shape)
-    perturbed_samples = samples + noise * sigmas
-    target = -noise / sigmas
-    scores = model(perturbed_samples, labels)
-    loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * sigmas.squeeze() ** anneal_power
-    return loss.mean(axis=0)
+    perturbed_samples = samples + noise * used_sigmas
+    target = -noise / used_sigmas**2
+    scores = model.apply(variables, perturbed_samples, labels, mutable=False)
+    #losses = jnp.square(score - target)
+    loss_1 = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) #* used_sigmas.squeeze() ** anneal_power
+    loss = loss_1 * used_sigmas**2 
+    loss = jnp.mean(loss)
+    return loss
 
 
-# In[114]:
+# In[356]:
 
 
 """ 
@@ -522,9 +521,7 @@ fake_input  = jnp.zeros(input_shape)
 fake_label  = jnp.zeros(label_shape, dtype=jnp.int32)
 params_rng, dropout_rng = jax.random.split(rng)
 model = NCSNv2()
-#model = model_def()
 variables = model.init({'params': params_rng}, fake_input, fake_label)
-# Variables is a `flax.FrozenDict`. It is immutable and respects functional programming
 init_model_state, initial_params = variables.pop('params')
 
 # TODO: convert to optax - ie updated version for latest jax
@@ -537,7 +534,8 @@ optimizer = flax.optim.Adam(learning_rate=lr,
 key_seq = jax.random.PRNGKey(0)
 labels = jax.random.randint(key_seq, (len(data_jax[key_seq]),), minval=0, maxval=len(sigmas), dtype=jnp.int32)
 # parse variables
-test = model.apply(variables, data_jax[key_seq], labels, mutable=False)
+test , updated_params = model.apply(variables, data_jax[key_seq], labels, mutable=False)
+print(anneal_dsm_score_estimation(model, data_jax[key_seq], labels, sigmas, key_seq, variables))
 
 # ------------------------ #
 # testing score estimation #
@@ -552,15 +550,17 @@ plt.subplot(2,2,1)
 plt.imshow(scores[0], cmap='plasma')
 #plt.colorbar()
 plt.title('Gaussian Noise',fontsize=28,pad=15)
+plt.ylabel('score', fontsize=28)
 plt.subplot(2,2,2)
 plt.imshow(scores2[0], cmap='plasma')
 cbar = plt.colorbar()
 cbar.set_label(r'$\nabla_x log \ p(\mathbf{\tilde{x}})$', rotation=270, fontsize = 20,labelpad= 25)
 plt.title('Galaxy',fontsize=28,pad=15)
-plt.ylabel('data')
+
 
 plt.subplot(2,2,3)
 plt.imshow(gaussian_noise[0], cmap='cividis')
+plt.ylabel('data', fontsize=28)
 #plt.colorbar()
 #plt.title('Gaussian Noise',fontsize=28,pad=15)
 plt.subplot(2,2,4)
@@ -571,7 +571,9 @@ cbar.set_label(r'pixel density', rotation=270, fontsize = 20,labelpad= 25)
 # ----------------------------------- #
 
 
-"""
+# In[357]:
+
+
 # ------------- #
 # training loop #
 # ------------- #
@@ -598,10 +600,9 @@ for t in tqdm(range(steps + 1)):
 # -------------------- #
 # end of training loop #       
 # -------------------- #
-"""
 
 
-# In[104]:
+# In[ ]:
 
 
 # ------------------------ #

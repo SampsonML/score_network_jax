@@ -443,7 +443,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     return loss
 
 
-# In[5]:
+# In[10]:
 
 
 """ 
@@ -494,40 +494,45 @@ model = NCSNv2()
 variables = model.init({'params': params_rng}, fake_input, fake_label)
 init_model_state, initial_params = variables.pop('params')
 
-# create random key and noise labels for testing
-key_seq = jax.random.PRNGKey(0)
-labels = jax.random.randint(key_seq, (len(data_jax[key_seq]),), minval=0, maxval=len(sigmas), dtype=jnp.int32)
 
-# ------------------------------------- #
-# testing score estimation pre-training #
-# ------------------------------------- #
-gaussian_noise = jax.random.normal(rng, shape=data_jax[key_seq].shape)
-scores = model.apply(variables, gaussian_noise, labels)
-scores2 = model.apply(variables, data_jax[key_seq], labels)
-fig , ax = plt.subplots(2,2,figsize=(16, 12), facecolor='white',dpi = 70)
-plt.subplots_adjust(wspace=0.01)
-plt.subplot(2,2,1)
-plt.imshow(scores[0], cmap='plasma')
-#plt.colorbar()
-plt.title('Gaussian Noise',fontsize=28,pad=15)
-plt.ylabel('score', fontsize=30)
-plt.subplot(2,2,2)
-plt.imshow(scores2[0], cmap='plasma')
-cbar = plt.colorbar()
-cbar.set_label(r'$\nabla_x log \ p(\mathbf{\tilde{x}})$', rotation=270, fontsize = 20,labelpad= 25)
-plt.title('Galaxy',fontsize=28,pad=15)
-plt.subplot(2,2,3)
-plt.imshow(gaussian_noise[0], cmap='cividis')
-plt.ylabel('data', fontsize=30)
-plt.subplot(2,2,4)
-plt.imshow(data_jax[key_seq][0], cmap='cividis')
-cbar = plt.colorbar()
-cbar.set_label(r'pixel density', rotation=270, fontsize = 20,labelpad= 25)
-plt.savefig('score_estimation_pre_training.png',facecolor='white',dpi=300)
-# ----------------------------------- #
+# In[18]:
 
 
-# In[22]:
+# ------------------------------ #
+# visualisation for code testing #
+# ------------------------------ #
+import cmasher as cmr
+score_map = cmr.iceburn
+data_map = cmr.ember
+def plot_evolve(params,sample,step, labels):
+    gaussian_noise = jax.random.normal(rng, shape=sample.shape)
+    scores = model.apply({'params' : params}, gaussian_noise, labels)
+    scores2 = model.apply({'params' : params}, sample, labels)
+    fig , ax = plt.subplots(2,2,figsize=(16, 12), facecolor='white',dpi = 70)
+    plt.subplots_adjust(wspace=0.01)
+    plt.subplot(2,2,1)
+    plt.imshow(scores[0], cmap=score_map)
+    #plt.colorbar()
+    plt.title('Gaussian Noise',fontsize=36,pad=15)
+    plt.ylabel('score', fontsize=40)
+    plt.subplot(2,2,2)
+    plt.imshow(scores2[0], cmap=score_map)
+    cbar = plt.colorbar()
+    cbar.set_label(r'$\nabla_x log \ p(\mathbf{\tilde{x}})$', rotation=270, fontsize = 20,labelpad= 25)
+    plt.title('Galaxy',fontsize=36,pad=15)
+    plt.subplot(2,2,3)
+    plt.imshow(gaussian_noise[0], cmap=data_map)
+    plt.ylabel('data', fontsize=40)
+    plt.subplot(2,2,4)
+    plt.imshow(sample[0], cmap=data_map)
+    cbar = plt.colorbar()
+    cbar.set_label(r'pixel density', rotation=270, fontsize = 20,labelpad= 25)
+    plt.tight_layout()
+    save_name = 'score_estimation_pre_training_step_' + str(step) + '.png'
+    plt.savefig(save_name,facecolor='white',dpi=300)
+
+
+# In[8]:
 
 
 # optax testing bench
@@ -554,73 +559,13 @@ model_state = optimizer.init(params)
 loss_fn = anneal_dsm_score_estimation
 
 # A simple update loop
-for _ in range(10):
-  grads = jax.grad(loss_fn)({'params' : params}, model, samples, labels, sigmas, key_seq)
+for i in range(10):
+  grads = jax.grad(loss_fn)(params, model, samples, labels, sigmas, key_seq)
   updates, model_state = optimizer.update(grads, model_state)
   params = optax.apply_updates(params, updates)
-
-
-# In[ ]:
-
-
-# ------------- #
-# training loop #
-# ------------- #
-print('loss: ', anneal_dsm_score_estimation(model, gaussian_noise, labels, sigmas, key_seq, variables))
-loss = anneal_dsm_score_estimation(model, gaussian_noise, labels, sigmas, key_seq, variables)
-print( 'loss: ', loss)
-
-# TODO: edit this routine with the new standard of "model.apply()" for running
-@jax.jit
-def train_step(model, optimizer, rng, samples, labels, sigmas):
-    grads = jax.grad(anneal_dsm_score_estimation)(model, samples, labels, sigmas, rng, variables)
-    model = optimizer.update(grads, model)
-    return model, optimizer, rng
-
-#key_seq = jax.random.PRNGKey(0)
-
-#idx = jax.random.randint(key_seq, (1,), minval=0, maxval=len(data_jax), dtype=jnp.int32)
-#labels = jax.random.randint(key_seq, (len(data_jax[idx]),), minval=0, maxval=len(sigmas), dtype=jnp.int32)
-#grads = jax.grad(anneal_dsm_score_estimation)(model, data_jax[idx], labels, sigmas, rng, variables)
-
-
-for t in tqdm(range(steps + 1)):
-
-    idx = jax.random.randint(key_seq, (1,), minval=0, maxval=len(data_jax), dtype=jnp.int32)
-    labels = jax.random.randint(key_seq, (len(data_jax[idx]),), minval=0, maxval=len(sigmas), dtype=jnp.int32)
-    model, optimizer, key_seq = train_step(model, optimizer, 
-                                key_seq, data_jax[idx], labels, sigmas)
-
-    if ((t % (steps // 5)) == 0):
-        labels = jax.random.randint(key_seq, (len(data_jax[0]),), minval=0, maxval=len(sigmas), dtype=jnp.int32)
-        print(anneal_dsm_score_estimation(model, data_jax[0], labels, sigmas[labels], key_seq))
-# -------------------- #
-# end of training loop #       
-# -------------------- #
-
-
-# In[ ]:
-
-
-# ------------------------ #
-# testing score estimation #
-# ------------------------ #
-gaussian_noise = jax.random.normal(rng, shape=data_jax[key_seq].shape)
-galaxy = dataset[1992]
-labels = np.random.randint(0, len(sigmas), (gaussian_noise.shape[0],))
-scores = model.apply(variables, gaussian_noise, labels)
-scores2 = model.apply(variables, galaxy, labels)
-fig , ax = plt.subplots(1,2,figsize=(16, 5.5), facecolor='black',dpi = 70)
-plt.subplots_adjust(wspace=0.01)
-plt.subplot(1,2,1)
-plt.imshow(scores, cmap='plasma')
-#plt.colorbar()
-plt.title('Gaussian Noise',fontsize=28,pad=15)
-plt.subplot(1,2,2)
-plt.imshow(scores2, cmap='plasma')
-cbar = plt.colorbar()
-cbar.set_label(r'$\nabla_x log \ p(\mathbf{\tilde{x}})$', rotation=270, fontsize = 20,labelpad= 25)
-plt.title('Galaxy',fontsize=28,pad=15)
+  print(f'loss at step {i}: {loss_fn(params, model, samples, labels, sigmas, key_seq)}')
+  # make plot so see evolution
+  plot_evolve(params, samples, i, labels)
 
 
 # In[ ]:

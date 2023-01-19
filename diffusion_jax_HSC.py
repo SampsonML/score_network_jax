@@ -443,7 +443,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     return loss
 
 
-# In[10]:
+# In[5]:
 
 
 """ 
@@ -495,7 +495,7 @@ variables = model.init({'params': params_rng}, fake_input, fake_label)
 init_model_state, initial_params = variables.pop('params')
 
 
-# In[18]:
+# In[6]:
 
 
 # ------------------------------ #
@@ -532,7 +532,7 @@ def plot_evolve(params,sample,step, labels):
     plt.savefig(save_name,facecolor='white',dpi=300)
 
 
-# In[8]:
+# In[7]:
 
 
 # optax testing bench
@@ -568,7 +568,7 @@ for i in range(10):
   plot_evolve(params, samples, i, labels)
 
 
-# In[ ]:
+# In[8]:
 
 
 # ------------------------- #

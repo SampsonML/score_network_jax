@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[352]:
+# In[1]:
 
 
 """
@@ -11,14 +11,8 @@ https://arxiv.org/abs/2006.09011
 Code taken primarily from https://github.com/yang-song/score_sde/
 Modifications by Matt Sampson include:
     - Minor updates to use the latest version of flax
+    - changed optim.Adam to optax.adam (required for latex flax)
 """
-
-# temporary fix for flax.optim issue:
-# https://stackoverflow.com/questions/73488909/attributeerror-module-flax-has-no-attribute-optim
-#!pip uninstall flax -y
-#!pip install flax==0.5.1
-# proper fix here (https://flax.readthedocs.io/en/latest/advanced_topics/optax_update_guide.html)
-# not yet implemented
 
 get_ipython().run_line_magic('matplotlib', 'inline')
 import functools
@@ -36,10 +30,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 import flax
+import optax
 Path("outputs").mkdir(exist_ok=True)
 
 
-# In[353]:
+# In[2]:
 
 
 """Common layers for defining score networks.
@@ -352,7 +347,7 @@ class ConditionalResidualBlock(nn.Module):
     return h + shortcut
 
 
-# In[354]:
+# In[3]:
 
 
 """ 
@@ -442,7 +437,7 @@ class NCSNv2(nn.Module):
 
 
 
-# In[355]:
+# In[4]:
 
 
 """
@@ -473,7 +468,7 @@ def anneal_dsm_score_estimation(model, samples, labels, sigmas, key, variables):
     return loss
 
 
-# In[356]:
+# In[5]:
 
 
 """ 
@@ -523,25 +518,21 @@ params_rng, dropout_rng = jax.random.split(rng)
 model = NCSNv2()
 variables = model.init({'params': params_rng}, fake_input, fake_label)
 init_model_state, initial_params = variables.pop('params')
+optimizer = optax.adam(learning_rate=lr, 
+                       b1=0.9, 
+                       b2=0.999, 
+                       eps=1e-08, 
+                       eps_root=0.0, 
+                       mu_dtype=None).init(initial_params)  # create optimizer
 
-# TODO: convert to optax - ie updated version for latest jax
-# https://flax.readthedocs.io/en/latest/advanced_topics/optax_update_guide.html
-optimizer = flax.optim.Adam(learning_rate=lr,
-                            beta1 = 0.9,
-                            eps = 1e-8).create(initial_params)  # create optimizer
-
-
+# create random key and noise labels fro testing
 key_seq = jax.random.PRNGKey(0)
 labels = jax.random.randint(key_seq, (len(data_jax[key_seq]),), minval=0, maxval=len(sigmas), dtype=jnp.int32)
-# parse variables
-test , updated_params = model.apply(variables, data_jax[key_seq], labels, mutable=False)
-print(anneal_dsm_score_estimation(model, data_jax[key_seq], labels, sigmas, key_seq, variables))
 
-# ------------------------ #
-# testing score estimation #
-# ------------------------ #
+# ------------------------------------- #
+# testing score estimation pre-training #
+# ------------------------------------- #
 gaussian_noise = jax.random.normal(rng, shape=data_jax[key_seq].shape)
-#gaussian_noise = data_jax[key_seq] 
 scores = model.apply(variables, gaussian_noise, labels)
 scores2 = model.apply(variables, data_jax[key_seq], labels)
 fig , ax = plt.subplots(2,2,figsize=(16, 12), facecolor='white',dpi = 70)
@@ -550,49 +541,91 @@ plt.subplot(2,2,1)
 plt.imshow(scores[0], cmap='plasma')
 #plt.colorbar()
 plt.title('Gaussian Noise',fontsize=28,pad=15)
-plt.ylabel('score', fontsize=28)
+plt.ylabel('score', fontsize=30)
 plt.subplot(2,2,2)
 plt.imshow(scores2[0], cmap='plasma')
 cbar = plt.colorbar()
 cbar.set_label(r'$\nabla_x log \ p(\mathbf{\tilde{x}})$', rotation=270, fontsize = 20,labelpad= 25)
 plt.title('Galaxy',fontsize=28,pad=15)
-
-
 plt.subplot(2,2,3)
 plt.imshow(gaussian_noise[0], cmap='cividis')
-plt.ylabel('data', fontsize=28)
-#plt.colorbar()
-#plt.title('Gaussian Noise',fontsize=28,pad=15)
+plt.ylabel('data', fontsize=30)
 plt.subplot(2,2,4)
 plt.imshow(data_jax[key_seq][0], cmap='cividis')
 cbar = plt.colorbar()
 cbar.set_label(r'pixel density', rotation=270, fontsize = 20,labelpad= 25)
-#plt.title('Galaxy',fontsize=28,pad=15)
+plt.savefig('score_estimation_pre_training.png',facecolor='white',dpi=300)
 # ----------------------------------- #
 
 
-# In[357]:
+# In[6]:
+
+
+# define optimiser using latest flax standards
+optimizer = optax.adam(learning_rate=lr, 
+                       b1=0.9, 
+                       b2=0.999, 
+                       eps=1e-08, 
+                       eps_root=0.0, 
+                       mu_dtype=None).init(initial_params)  # create optimizer
+
+# name loss function
+loss_fn = anneal_dsm_score_estimation
+
+
+def fit(params: optax.Params, optimizer: optax.GradientTransformation) -> optax.Params:
+  opt_state = optimizer.init(params)
+
+  @jax.jit
+  def step(params, opt_state, batch, labels):
+    loss_value, grads = jax.value_and_grad(loss)(params, batch, labels)
+    updates, opt_state = optimizer.update(grads, opt_state, params)
+    params = optax.apply_updates(params, updates)
+    return params, opt_state, loss_value
+
+  for i, (batch, labels) in enumerate(zip(TRAINING_DATA, LABELS)):
+    params, opt_state, loss_value = step(params, opt_state, batch, labels)
+    if i % 100 == 0:
+      print(f'step {i}, loss: {loss_value}')
+
+  return params
+
+# Finally, we can fit our parametrized function using the Adam optimizer
+# provided by optax.
+optimizer = optax.adam(learning_rate=1e-2)
+params = fit(initial_params, optimizer)
+
+
+# In[ ]:
 
 
 # ------------- #
 # training loop #
 # ------------- #
+print('loss: ', anneal_dsm_score_estimation(model, gaussian_noise, labels, sigmas, key_seq, variables))
+loss = anneal_dsm_score_estimation(model, gaussian_noise, labels, sigmas, key_seq, variables)
+print( 'loss: ', loss)
 
 # TODO: edit this routine with the new standard of "model.apply()" for running
 @jax.jit
 def train_step(model, optimizer, rng, samples, labels, sigmas):
-    rng   = jax.random.PRNGKey(rng) # random number random seed
-    grads = jax.grad(anneal_dsm_score_estimation)(model, samples, labels, sigmas, rng)
+    grads = jax.grad(anneal_dsm_score_estimation)(model, samples, labels, sigmas, rng, variables)
     model = optimizer.update(grads, model)
     return model, optimizer, rng
 
-key_seq = jax.random.PRNGKey(0)
+#key_seq = jax.random.PRNGKey(0)
+
+#idx = jax.random.randint(key_seq, (1,), minval=0, maxval=len(data_jax), dtype=jnp.int32)
+#labels = jax.random.randint(key_seq, (len(data_jax[idx]),), minval=0, maxval=len(sigmas), dtype=jnp.int32)
+#grads = jax.grad(anneal_dsm_score_estimation)(model, data_jax[idx], labels, sigmas, rng, variables)
+
+
 for t in tqdm(range(steps + 1)):
 
     idx = jax.random.randint(key_seq, (1,), minval=0, maxval=len(data_jax), dtype=jnp.int32)
     labels = jax.random.randint(key_seq, (len(data_jax[idx]),), minval=0, maxval=len(sigmas), dtype=jnp.int32)
     model, optimizer, key_seq = train_step(model, optimizer, 
-                                key_seq, data_jax[idx], labels, sigmas[labels])
+                                key_seq, data_jax[idx], labels, sigmas)
 
     if ((t % (steps // 5)) == 0):
         labels = jax.random.randint(key_seq, (len(data_jax[0]),), minval=0, maxval=len(sigmas), dtype=jnp.int32)

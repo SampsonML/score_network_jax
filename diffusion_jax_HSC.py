@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[11]:
 
 
 """
@@ -34,7 +34,7 @@ import optax
 Path("outputs").mkdir(exist_ok=True)
 
 
-# In[2]:
+# In[12]:
 
 
 """Common layers for defining score networks.
@@ -322,7 +322,7 @@ class ConditionalResidualBlock(nn.Module):
     return h + shortcut
 
 
-# In[3]:
+# In[13]:
 
 
 """ 
@@ -413,7 +413,7 @@ class NCSNv2(nn.Module):
 
 
 
-# In[4]:
+# In[14]:
 
 
 """
@@ -444,7 +444,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     return loss
 
 
-# In[5]:
+# In[15]:
 
 
 """ 
@@ -511,7 +511,7 @@ variables = model.init({'params': params_rng}, fake_input, fake_label)
 init_model_state, initial_params = variables.pop('params')
 
 
-# In[6]:
+# In[16]:
 
 
 # ------------------------------ #
@@ -547,10 +547,11 @@ def plot_evolve(params,sample,step, labels):
     plt.suptitle(super_name, fontsize = 40)
     plt.tight_layout()
     save_name = 'score_estimation_pre_training_step_' + str(step) + '.png'
-    plt.savefig(save_name,facecolor='white',dpi=300)
+    plt.savefig(save_name,facecolor='white',dpi=200)
+    plt.close()
 
 
-# In[7]:
+# In[17]:
 
 
 # optax testing bench
@@ -580,7 +581,7 @@ loss_fn = anneal_dsm_score_estimation
 # A simple update loop
 train    = True
 plot     = False
-step_num = 20
+step_num = 500
 from tqdm import tqdm
 
 if train:
@@ -597,15 +598,15 @@ if train:
 
 fig , ax = plt.subplots(1,1,figsize=(12, 8), facecolor='white',dpi = 70)
 steps = range(0,step_num)
-plt.plot(steps,loss_vector, alpha = 0.75, zorder = 0)
-plt.scatter(steps,loss_vector, zorder = 1)
+plt.plot(steps,loss_vector, alpha = 0.80, zorder = 0)
+#plt.scatter(steps,loss_vector, zorder = 1)
 plt.xlabel('training steps', fontsize = 30)
 plt.ylabel('loss (arb)', fontsize = 30)
 plt.tight_layout()
 plt.savefig('loss_evolution.png',facecolor='white',dpi=300)
 
 
-# In[37]:
+# In[18]:
 
 
 # ------------------------- #
@@ -628,9 +629,9 @@ def anneal_Langevin_dynamics(x_mod, scorenet, params, sigmas, n_steps_each=100,
             noise = jax.random.normal(rng, shape=x_mod.shape)
             x_mod = x_mod + step_size * grad + noise * np.sqrt(step_size * 2)
             # store the progress per step
-            if (c == len(sigmas) - 1):
-                images.append(x_mod)
-                scores.append(grad)
+            #if (c == len(sigmas) - 1):
+            images.append(x_mod)
+            scores.append(grad)
 
     if denoise:
         last_noise = (len(sigmas) - 1) * jax.numpy.ones(x_mod.shape[0], dtype=np.int8)
@@ -642,7 +643,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, params, sigmas, n_steps_each=100,
     return images, scores
 
 
-# In[38]:
+# In[19]:
 
 
 # ---------------- #
@@ -658,24 +659,21 @@ images, scores = anneal_Langevin_dynamics(  gaussian_noise,
                                             model, 
                                             params, 
                                             sigmas, 
-                                            n_steps_each=5, 
+                                            n_steps_each=100, 
                                             denoise=True  )
 
 
-# In[39]:
+# In[25]:
 
 
 images_array = np.array(images)
-scores_array = np.array(scores)
-for i in range(len(scores_array)):
-    print(f'square sum of scores at step {i+1}: {np.sum(scores_array[i][0]**2)}')
-
-
 fig , ax = plt.subplots(2,5,figsize=(16, 7), facecolor='white',dpi = 70)
+plt_idx = int( len(images_array) / 10 )
 for i in range(10):
     plt.subplot(2,5,i + 1)
-    name = 'langevin step ' + str(i)
+    plt_idx 
+    name = 'langevin step ' + str(i * plt_idx)
     plt.title(name, fontsize = 20)
-    plt.imshow(images_array[i][0], cmap=data_map)
+    plt.imshow(images_array[i * plt_idx][0], cmap=data_map)
 plt.show()
 

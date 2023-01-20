@@ -529,7 +529,7 @@ def plot_evolve(params,sample,step, labels):
     plt.close()
 
 
-# In[14]:
+# In[7]:
 
 
 # TODO: write a dataloader to load in mini-batches of data
@@ -538,10 +538,15 @@ def plot_evolve(params,sample,step, labels):
 # model training and init params
 key_seq     = jax.random.PRNGKey(42)                # random seed
 n_epochs    = 50                                    # number of epochs
-n_steps     = 50                                    # number of steps per epoch
-batch_size  = 64                                    # batch size
+n_steps     = 5                                    # number of steps per epoch
+batch_size  = 32                                    # batch size
 lr          = 1e-4                                  # learning rate
 im_size     = 64                                    # image size
+
+# construct the training data
+# TODO: convert this to proper dataloader
+batch = jnp.array(range(0, batch_size))
+training_data = data_jax[batch]
 
 # define noise levels and noise params
 sigma_begin = 1
@@ -550,13 +555,13 @@ num_scales  = 10
 sigmas      = jnp.exp(jnp.linspace(jnp.log(sigma_end), 
                         jnp.log(sigma_begin),num_scales))
 sigmas = jax.numpy.flip(sigmas)
-labels = jax.random.randint(key_seq, (len(data_jax[key_seq]),), 
+labels = jax.random.randint(key_seq, (len(training_data),), 
                             minval=0, maxval=len(sigmas), dtype=jnp.int32)
 
 # model init variables
 #input_shape = (jax.local_device_count(), im_size, im_size, 1)  
 #label_shape = input_shape[:1]
-input_shape = data_jax[key_seq].shape
+input_shape = training_data.shape
 label_shape = labels.shape
 fake_input  = jnp.zeros(input_shape)
 fake_label  = jnp.zeros(label_shape, dtype=jnp.int32)
@@ -585,7 +590,7 @@ loss_fn = anneal_dsm_score_estimation
 # A simple update loop
 train    = True
 plot     = False
-samples = data_jax[key_seq]
+samples  = training_data
 from tqdm import tqdm
 
 if train:
@@ -595,6 +600,7 @@ if train:
     updates, model_state = optimizer.update(grads, model_state)
     params = optax.apply_updates(params, updates)
     loss_vector[i] = loss_fn(params, model, samples, labels, sigmas, key_seq)
+    print(f'loss at step {i}: {loss_vector[i]}')
     # make plot to see evolution
     if (plot): plot_evolve(params, samples, i, labels)
   print(f'initial loss: {loss_vector[0]}')
@@ -612,7 +618,7 @@ if plot:
   plt.savefig('loss_evolution.png',facecolor='white',dpi=300)
 
 
-# In[15]:
+# In[ ]:
 
 
 # ------------------------- #
@@ -648,7 +654,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, params, sigmas, rng, n_steps_each=
     return images, scores
 
 
-# In[16]:
+# In[ ]:
 
 
 # ---------------- #
@@ -665,7 +671,7 @@ images, scores = anneal_Langevin_dynamics(  gaussian_noise,
                                             denoise=True  )
 
 
-# In[17]:
+# In[ ]:
 
 
 images_array = np.array(images)

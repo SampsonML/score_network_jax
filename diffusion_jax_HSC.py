@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
+# In[41]:
 
 
 """
@@ -34,7 +34,7 @@ import optax
 Path("outputs").mkdir(exist_ok=True)
 
 
-# In[12]:
+# In[42]:
 
 
 """Common layers for defining score networks.
@@ -322,7 +322,7 @@ class ConditionalResidualBlock(nn.Module):
     return h + shortcut
 
 
-# In[13]:
+# In[43]:
 
 
 """ 
@@ -413,7 +413,7 @@ class NCSNv2(nn.Module):
 
 
 
-# In[14]:
+# In[44]:
 
 
 """
@@ -444,7 +444,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     return loss
 
 
-# In[15]:
+# In[45]:
 
 
 """ 
@@ -511,7 +511,7 @@ variables = model.init({'params': params_rng}, fake_input, fake_label)
 init_model_state, initial_params = variables.pop('params')
 
 
-# In[16]:
+# In[46]:
 
 
 # ------------------------------ #
@@ -551,7 +551,7 @@ def plot_evolve(params,sample,step, labels):
     plt.close()
 
 
-# In[17]:
+# In[47]:
 
 
 # optax testing bench
@@ -581,7 +581,7 @@ loss_fn = anneal_dsm_score_estimation
 # A simple update loop
 train    = True
 plot     = False
-step_num = 500
+step_num = 200
 from tqdm import tqdm
 
 if train:
@@ -598,15 +598,15 @@ if train:
 
 fig , ax = plt.subplots(1,1,figsize=(12, 8), facecolor='white',dpi = 70)
 steps = range(0,step_num)
-plt.plot(steps,loss_vector, alpha = 0.80, zorder = 0)
-#plt.scatter(steps,loss_vector, zorder = 1)
+plt.plot(steps,loss_vector, alpha = 0.80, zorder=0)
+#plt.scatter(steps,loss_vector, s=20, zorder=1)
 plt.xlabel('training steps', fontsize = 30)
 plt.ylabel('loss (arb)', fontsize = 30)
 plt.tight_layout()
 plt.savefig('loss_evolution.png',facecolor='white',dpi=300)
 
 
-# In[18]:
+# In[48]:
 
 
 # ------------------------- #
@@ -643,7 +643,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, params, sigmas, n_steps_each=100,
     return images, scores
 
 
-# In[19]:
+# In[49]:
 
 
 # ---------------- #
@@ -663,17 +663,20 @@ images, scores = anneal_Langevin_dynamics(  gaussian_noise,
                                             denoise=True  )
 
 
-# In[25]:
+# In[50]:
 
 
 images_array = np.array(images)
+col_map = cmr.lilac
 fig , ax = plt.subplots(2,5,figsize=(16, 7), facecolor='white',dpi = 70)
 plt_idx = int( len(images_array) / 10 )
 for i in range(10):
     plt.subplot(2,5,i + 1)
     plt_idx 
-    name = 'langevin step ' + str(i * plt_idx)
+    name = 'langevin step ' + str(i * 5)
     plt.title(name, fontsize = 20)
-    plt.imshow(images_array[i * plt_idx][0], cmap=data_map)
+    plt.imshow(images_array[i * plt_idx][0], cmap=col_map)
+plt.tight_layout()
+plt.savefig('langevin_evolution.png',facecolor='white',dpi=300)
 plt.show()
 

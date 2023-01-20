@@ -14,6 +14,10 @@ Modifications by Matt Sampson include:
     - changed optim.Adam to optax.adam (required for latex flax)
 """
 
+# require newest cuda supported jaxlib for GPU/TPU use
+#!conda install cudatoolkit-dev=11.3.1 -c conda-forge
+#!pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+
 get_ipython().run_line_magic('matplotlib', 'inline')
 import functools
 import math
@@ -32,6 +36,10 @@ from tqdm import tqdm
 import flax
 import optax
 Path("outputs").mkdir(exist_ok=True)
+
+# test we can find correct device
+from jax.lib import xla_bridge
+print(f'Device found is: {xla_bridge.get_backend().platform}')
 
 
 # In[2]:
@@ -538,7 +546,7 @@ def plot_evolve(params,sample,step, labels):
 # model training and init params
 key_seq     = jax.random.PRNGKey(42)                # random seed
 n_epochs    = 50                                    # number of epochs
-n_steps     = 5                                    # number of steps per epoch
+n_steps     = 30                                    # number of steps per epoch
 batch_size  = 32                                    # batch size
 lr          = 1e-4                                  # learning rate
 im_size     = 64                                    # image size
@@ -600,7 +608,7 @@ if train:
     updates, model_state = optimizer.update(grads, model_state)
     params = optax.apply_updates(params, updates)
     loss_vector[i] = loss_fn(params, model, samples, labels, sigmas, key_seq)
-    print(f'loss at step {i}: {loss_vector[i]}')
+    #print(f'loss at step {i}: {loss_vector[i]}')
     # make plot to see evolution
     if (plot): plot_evolve(params, samples, i, labels)
   print(f'initial loss: {loss_vector[0]}')

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[51]:
+# In[1]:
 
 
 """
@@ -34,7 +34,7 @@ import optax
 Path("outputs").mkdir(exist_ok=True)
 
 
-# In[52]:
+# In[2]:
 
 
 """Common layers for defining score networks.
@@ -322,7 +322,7 @@ class ConditionalResidualBlock(nn.Module):
     return h + shortcut
 
 
-# In[53]:
+# In[3]:
 
 
 """ 
@@ -413,7 +413,7 @@ class NCSNv2(nn.Module):
 
 
 
-# In[54]:
+# In[4]:
 
 
 """
@@ -444,7 +444,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     return loss
 
 
-# In[55]:
+# In[5]:
 
 
 """ 
@@ -487,31 +487,9 @@ data_jax = jnp.array(dataset)
 # expand dimensions for channel dim
 data_jax = jax.numpy.expand_dims(data_jax, axis=-1)
 
-# define noise levels 
-sigma_begin = 1
-sigma_end   = 0.01
-num_scales  = 10
-sigmas      = jnp.exp(jnp.linspace(jnp.log(sigma_end), 
-                        jnp.log(sigma_begin),num_scales))
-sigmas = jax.numpy.flip(sigmas)
-
-# score model params
-n_epochs    = 50                                    # number of epochs
-steps       = 1_000                                 # number of steps per epoch
-batch_size  = 64                                    # batch size
-lr          = 1e-4                                  # learning rate
-rng         = jax.random.PRNGKey(1992)              # random seed
-input_shape = (jax.local_device_count(), 64, 64, 1) # size 64 by 64 one channel
-label_shape = input_shape[:1]
-fake_input  = jnp.zeros(input_shape)
-fake_label  = jnp.zeros(label_shape, dtype=jnp.int32)
-params_rng, dropout_rng = jax.random.split(rng)
-model = NCSNv2()
-variables = model.init({'params': params_rng}, fake_input, fake_label)
-init_model_state, initial_params = variables.pop('params')
 
 
-# In[56]:
+# In[6]:
 
 
 # ------------------------------ #
@@ -551,28 +529,46 @@ def plot_evolve(params,sample,step, labels):
     plt.close()
 
 
-# In[57]:
+# In[7]:
 
 
 # TODO: write a dataloader to load in mini-batches of data
 # see https://wandb.ai/jax-series/simple-training-loop/reports/Writing-a-Training-Loop-in-JAX-FLAX--VmlldzoyMzA4ODEy
 
-# optax testing bench
-# re-create random key and noise labels for testing
-key_seq = jax.random.PRNGKey(0)
-samples = data_jax[key_seq]
+# define noise levels and noise params
+sigma_begin = 1
+sigma_end   = 0.01
+num_scales  = 10
 sigmas      = jnp.exp(jnp.linspace(jnp.log(sigma_end), 
                         jnp.log(sigma_begin),num_scales))
 sigmas = jax.numpy.flip(sigmas)
-labels = jax.random.randint(key_seq, (len(data_jax[key_seq]),), minval=0, maxval=len(sigmas), dtype=jnp.int32)
+key_seq = jax.random.PRNGKey(0)
+labels = jax.random.randint(key_seq, (len(data_jax[key_seq]),), 
+                            minval=0, maxval=len(sigmas), dtype=jnp.int32)
+
+# model training and init params
+n_epochs    = 50                                    # number of epochs
+steps       = 1_000                                 # number of steps per epoch
+batch_size  = 64                                    # batch size
+lr          = 1e-4                                  # learning rate
+input_shape = (jax.local_device_count(), 64, 64, 1) # size 64 by 64 one channel
+label_shape = input_shape[:1]
+fake_input  = jnp.zeros(input_shape)
+fake_label  = jnp.zeros(label_shape, dtype=jnp.int32)
+#params_rng, dropout_rng = jax.random.split(key_seq)
+params_rng = key_seq
+model = NCSNv2()
+variables = model.init({'params': params_rng}, fake_input, fake_label)
+init_model_state, initial_params = variables.pop('params')
+
 
 # define optimiser using latest flax standards
-optimizer = optax.adam(learning_rate=lr, 
-                       b1=0.9, 
-                       b2=0.999, 
-                       eps=1e-08, 
-                       eps_root=0.0, 
-                       mu_dtype=None) 
+optimizer = optax.adam( learning_rate=lr, 
+                        b1=0.9, 
+                        b2=0.999, 
+                        eps=1e-08, 
+                        eps_root=0.0, 
+                        mu_dtype=None ) 
 
 # initialise model state
 params = initial_params
@@ -585,6 +581,7 @@ loss_fn = anneal_dsm_score_estimation
 train    = True
 plot     = False
 step_num = 200
+samples = data_jax[key_seq]
 from tqdm import tqdm
 
 if train:
@@ -594,7 +591,6 @@ if train:
     updates, model_state = optimizer.update(grads, model_state)
     params = optax.apply_updates(params, updates)
     loss_vector[i] = loss_fn(params, model, samples, labels, sigmas, key_seq)
-    #print(f'loss at step {i}: {loss_vector[i]}')
     # make plot so see evolution
     if (plot): plot_evolve(params, samples, i, labels)
   
@@ -609,7 +605,7 @@ plt.tight_layout()
 plt.savefig('loss_evolution.png',facecolor='white',dpi=300)
 
 
-# In[58]:
+# In[ ]:
 
 
 # ------------------------- #
@@ -618,10 +614,10 @@ plt.savefig('loss_evolution.png',facecolor='white',dpi=300)
 
 def anneal_Langevin_dynamics(x_mod, scorenet, params, sigmas, n_steps_each=100, 
                             step_lr=0.000008,denoise=True):
+    # initialise arrays for images and scores
     images = []
     scores  = []
 
-    #for i in tqdm(range(len(sigmas)), desc= 'generating galaxy'):
     for c, sigma in enumerate(sigmas):
         labels = jax.numpy.ones(x_mod.shape[0],dtype=np.int8) * c
         step_size = step_lr * (sigma / sigmas[-1]) ** 2
@@ -645,7 +641,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, params, sigmas, n_steps_each=100,
     return images, scores
 
 
-# In[59]:
+# In[ ]:
 
 
 # ---------------- #
@@ -661,25 +657,26 @@ images, scores = anneal_Langevin_dynamics(  gaussian_noise,
                                             model, 
                                             params, 
                                             sigmas, 
-                                            n_steps_each=60, 
+                                            n_steps_each=63, 
                                             denoise=True  )
 
 
-# In[60]:
+# In[ ]:
 
 
 images_array = np.array(images)
 col_map = cmr.lilac
 fig , ax = plt.subplots(2,5,figsize=(16, 7), facecolor='white',dpi = 70)
 plt_idx = int( len(images_array) / 10 )
-for i in range(10):
-    plt.subplot(2,5,i + 1)
-    plt_idx 
-    name = 'langevin step ' + str(i * 5)
+step_array = [0, 2, 4, 8, 16, 32, 64]
+for i in range(7):
+    plt.subplot(1,7,i + 1)
+    step = step_array[i] * 10
+    name = 'langevin step ' + str(int( step / 10 ))
     plt.title(name, fontsize = 24)
-    plt.imshow(images_array[i * plt_idx][0], cmap=col_map)
+    plt.imshow(images_array[step][0], cmap=col_map)
     plt.axis('off')
 plt.tight_layout()
-plt.savefig('langevin_evolution_64.png',facecolor='white',dpi=300)
+plt.savefig('langevin_evolution_panel7.png',facecolor='white',dpi=300)
 plt.show()
 

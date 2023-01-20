@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[41]:
+# In[51]:
 
 
 """
@@ -34,7 +34,7 @@ import optax
 Path("outputs").mkdir(exist_ok=True)
 
 
-# In[42]:
+# In[52]:
 
 
 """Common layers for defining score networks.
@@ -322,7 +322,7 @@ class ConditionalResidualBlock(nn.Module):
     return h + shortcut
 
 
-# In[43]:
+# In[53]:
 
 
 """ 
@@ -413,7 +413,7 @@ class NCSNv2(nn.Module):
 
 
 
-# In[44]:
+# In[54]:
 
 
 """
@@ -423,14 +423,14 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     """
     Loss function for annealed score estimation
     -------------------------------------------
-    Inputs: model - the score neural network
+    Inputs: params - the model parameters
+            model - the score neural network
             samples - the samples from the data distribution
             labels - the noise scale labels
             sigmas - the noise scales
             key - the jax random key
-            variables - the model parameters
-    
-    Output: the loss value
+
+    Output: loss - the loss value
     """
     used_sigmas = sigmas[labels].reshape((samples.shape[0], *([1] * len(samples.shape[1:]))))
     noise = jax.random.normal(key, samples.shape)
@@ -444,7 +444,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     return loss
 
 
-# In[45]:
+# In[55]:
 
 
 """ 
@@ -498,10 +498,10 @@ sigmas = jax.numpy.flip(sigmas)
 # score model params
 n_epochs    = 50                                    # number of epochs
 steps       = 1_000                                 # number of steps per epoch
-batch_size  = 32                                    # batch size
+batch_size  = 64                                    # batch size
 lr          = 1e-4                                  # learning rate
 rng         = jax.random.PRNGKey(1992)              # random seed
-input_shape = (jax.local_device_count(), 32, 32, 1) # size 32 by 32 one channel
+input_shape = (jax.local_device_count(), 64, 64, 1) # size 64 by 64 one channel
 label_shape = input_shape[:1]
 fake_input  = jnp.zeros(input_shape)
 fake_label  = jnp.zeros(label_shape, dtype=jnp.int32)
@@ -511,7 +511,7 @@ variables = model.init({'params': params_rng}, fake_input, fake_label)
 init_model_state, initial_params = variables.pop('params')
 
 
-# In[46]:
+# In[56]:
 
 
 # ------------------------------ #
@@ -551,8 +551,11 @@ def plot_evolve(params,sample,step, labels):
     plt.close()
 
 
-# In[47]:
+# In[57]:
 
+
+# TODO: write a dataloader to load in mini-batches of data
+# see https://wandb.ai/jax-series/simple-training-loop/reports/Writing-a-Training-Loop-in-JAX-FLAX--VmlldzoyMzA4ODEy
 
 # optax testing bench
 # re-create random key and noise labels for testing
@@ -606,13 +609,12 @@ plt.tight_layout()
 plt.savefig('loss_evolution.png',facecolor='white',dpi=300)
 
 
-# In[48]:
+# In[58]:
 
 
 # ------------------------- #
 # langevin dynamic sampling #
 # ------------------------- #
-# TODO: port to jax in progress - testing 
 
 def anneal_Langevin_dynamics(x_mod, scorenet, params, sigmas, n_steps_each=100, 
                             step_lr=0.000008,denoise=True):
@@ -643,7 +645,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, params, sigmas, n_steps_each=100,
     return images, scores
 
 
-# In[49]:
+# In[59]:
 
 
 # ---------------- #
@@ -659,11 +661,11 @@ images, scores = anneal_Langevin_dynamics(  gaussian_noise,
                                             model, 
                                             params, 
                                             sigmas, 
-                                            n_steps_each=100, 
+                                            n_steps_each=60, 
                                             denoise=True  )
 
 
-# In[50]:
+# In[60]:
 
 
 images_array = np.array(images)
@@ -674,9 +676,10 @@ for i in range(10):
     plt.subplot(2,5,i + 1)
     plt_idx 
     name = 'langevin step ' + str(i * 5)
-    plt.title(name, fontsize = 20)
+    plt.title(name, fontsize = 24)
     plt.imshow(images_array[i * plt_idx][0], cmap=col_map)
+    plt.axis('off')
 plt.tight_layout()
-plt.savefig('langevin_evolution.png',facecolor='white',dpi=300)
+plt.savefig('langevin_evolution_64.png',facecolor='white',dpi=300)
 plt.show()
 

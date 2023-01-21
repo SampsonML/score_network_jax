@@ -1,0 +1,14 @@
+# Required packages/modules for easy running with minimal stress and tears
+ - jax>=0.6.0
+ - jaxlib>=0.1.59
+ - flax>=0.3.4
+ - optax>=0.0.9 (should auto-install with latest flax) 
+ - cmasher (optional but such pretty colourmaps)
+
+# if having GPU likely 
+# require newest cuda supported jaxlib for GPU/TPU 
+# try:
+#!conda install cudatoolkit-dev=11.3.1 -c conda-forge
+#!pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+# ensure specific CUDA lib is in LD_LIBRARY_PATH
+

@@ -361,7 +361,7 @@ class NCSNv2(nn.Module):
     sigmas        = jnp.exp(jnp.linspace(jnp.log(sigma_end), 
                               jnp.log(sigma_begin),num_scales))
     sigmas = jax.numpy.flip(sigmas)
-    im_size       = 32                    # image size
+    im_size       = 64                    # image size
     nf            = 128                   # number of filters
     act           = nn.elu                # activation function
     normalizer    = InstanceNorm2dPlus    # normalization function
@@ -426,9 +426,11 @@ class NCSNv2(nn.Module):
 # In[4]:
 
 
-# ------------------------------------------------------------------ #
-# The loss function for a noise dependent score model from Song+2020 #
-# ------------------------------------------------------------------ #
+# ---------------------------------------------------------- #
+# The loss function for a noise dependent score model        #
+#  defined Song+2021 https://arxiv.org/abs/2006.09011 eqn: 2 #           
+# updated for latest JAX                                     #
+# ---------------------------------------------------------- #
 def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     """
     Loss function for annealed score estimation

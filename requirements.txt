@@ -5,8 +5,8 @@
  - optax>=0.0.9 (should auto-install with latest flax) 
  - cmasher (optional but such pretty colourmaps)
 
-# if having GPU likely 
-# require newest cuda supported jaxlib for GPU/TPU 
+# if having GPU run issues you likely 
+# require update to newest cuda supported jaxlib for GPU/TPU 
 # try:
 #!conda install cudatoolkit-dev=11.3.1 -c conda-forge
 #!pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html

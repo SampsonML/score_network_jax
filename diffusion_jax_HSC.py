@@ -4,21 +4,26 @@
 # In[1]:
 
 
-"""
-A jax implementation of the diffusion model from 
-the paper "Improved Techniques for Training Score-Based Generative Models"
-https://arxiv.org/abs/2006.09011
-Code taken primarily from https://github.com/yang-song/score_sde/
-Modifications by Matt Sampson include:
-    - Minor updates to use the latest version of flax
-    - changed optim.Adam to optax.adam (required for latex flax)
-"""
+# ------------------------------------------------------------------------------ #
+# A jax implementation of the diffusion model from                               #
+# the paper "Improved Techniques for Training Score-Based Generative Models"     #
+# https://arxiv.org/abs/2006.09011                                               #
+# Code taken primarily from https://github.com/yang-song/score_sde/              #
+# Author: Matt Sampson                                                           #
+# Created: 2023                                                                  #
+#                                                                                #
+# Main modifications by Matt Sampson include:                                    #
+#    - Minor updates to U-NET use the latest version of JAX/flax.linen           #
+#    - removal of config files all params define in python file                  #
+#    - data loader added using numpy arrays then converted to jax arrays         #
+#    - changed optim.Adam to optax.adam (required for latex flax)                # 
+#    - re-wrote optimisation routine to use optax                                #
+#    - replaced the training loop with mini-batch grad descent in optax          #
+#    - re-wrote Langevin sampler in JAX soon with JIT (much faster sampling)     #
+#    - addition of various visualisation routines                                #
+# ------------------------------------------------------------------------------ #
 
-# require newest cuda supported jaxlib for GPU/TPU use
-#!conda install cudatoolkit-dev=11.3.1 -c conda-forge
-#!pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
-
-get_ipython().run_line_magic('matplotlib', 'inline')
+#%matplotlib inline
 import functools
 import math
 import string
@@ -35,6 +40,7 @@ import numpy as np
 from tqdm import tqdm
 import flax
 import optax
+from jax import jit
 Path("outputs").mkdir(exist_ok=True)
 
 # test we can find correct device
@@ -104,11 +110,10 @@ def ncsn_conv3x3(x, out_planes, stride=1, bias=True, dilation=1, init_scale=1.):
                    bias_init=bias_init)(x)
   return output
 
-# ---------------------------------------------------------------- #
-# Functions below are ported over from the NCSNv1/NCSNv2 codebase: #
-# https://github.com/ermongroup/ncsn                               #
-# https://github.com/ermongroup/ncsnv2                             #
-# ---------------------------------------------------------------- #
+# --------------------------------------------------------- #
+# Functions below are ported over from the NCSNv2 codebase: #
+#        https://github.com/ermongroup/ncsnv2               #
+# --------------------------------------------------------- #
 
 class CRPBlock(nn.Module):
   """CRPBlock for RefineNet. Used in NCSNv2."""
@@ -333,14 +338,11 @@ class ConditionalResidualBlock(nn.Module):
 # In[3]:
 
 
-""" 
-MATT:
-Want to build a U-NET in jax which will have 5 layers (to match Song+2020)
-Need to take into acount the noise scales - ie embedding the noise scale into the model
-Build this with flax.linen (flax.linen as nn)?
-"""
-# grabbed from https://github.com/yang-song/score_sde/blob/main/models/ncsnv2.py
-
+# --------------------------------------------------------------------------- #
+# JAX port of ncsnv2 - updated to work with                                   #
+# latest JAX/FLAX versions using optax over flax.optim                        #
+# original: https://github.com/yang-song/score_sde/blob/main/models/ncsnv2.py #
+# --------------------------------------------------------------------------- #
 CondResidualBlock = ConditionalResidualBlock
 conv3x3 = ncsn_conv3x3
 
@@ -424,9 +426,9 @@ class NCSNv2(nn.Module):
 # In[4]:
 
 
-"""
-The loss function for a noise dependent score model from Song+2020
-"""
+# ------------------------------------------------------------------ #
+# The loss function for a noise dependent score model from Song+2020 #
+# ------------------------------------------------------------------ #
 def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     """
     Loss function for annealed score estimation
@@ -456,14 +458,11 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
 # In[5]:
 
 
-""" 
-The training of the NCSNv2 model. Here define the training
-parameters and initialise the model. Train on a small scale 
-for testing before moving to the full scale on GPU HPC.
-"""
-# ----------- #
-# model setup #
-# ----------- #
+# ------------------------------------------------------------ #
+# The training of the NCSNv2 model. Here define the training   #
+# parameters and initialise the model. Train on a small scale  #
+# for testing before moving to the full scale on GPU HPC.      #
+# ------------------------------------------------------------ #
 
 # load in data  low res
 """
@@ -503,6 +502,7 @@ data_jax = jax.numpy.expand_dims(data_jax, axis=-1)
 # ------------------------------ #
 # visualisation for code testing #
 # ------------------------------ #
+
 import cmasher as cmr
 score_map = cmr.iceburn
 data_map = cmr.ember
@@ -540,19 +540,23 @@ def plot_evolve(params,sample,step, labels):
 # In[7]:
 
 
-# TODO: write a dataloader to load in mini-batches of data
+# ------------------- #
+# model training step #
+# ------------------- #
+# TODO: write a proper dataloader to load in mini-batches of data
 # see https://wandb.ai/jax-series/simple-training-loop/reports/Writing-a-Training-Loop-in-JAX-FLAX--VmlldzoyMzA4ODEy
 
 # model training and init params
 key_seq     = jax.random.PRNGKey(42)                # random seed
 n_epochs    = 50                                    # number of epochs
-n_steps     = 30                                    # number of steps per epoch
-batch_size  = 32                                    # batch size
+n_steps     = 50                                    # number of steps per epoch
+batch_size  = 1                                    # batch size
 lr          = 1e-4                                  # learning rate
 im_size     = 64                                    # image size
 
 # construct the training data
 # TODO: convert this to proper dataloader
+# currently will run on just a single mini-batch of data
 batch = jnp.array(range(0, batch_size))
 training_data = data_jax[batch]
 
@@ -567,8 +571,6 @@ labels = jax.random.randint(key_seq, (len(training_data),),
                             minval=0, maxval=len(sigmas), dtype=jnp.int32)
 
 # model init variables
-#input_shape = (jax.local_device_count(), im_size, im_size, 1)  
-#label_shape = input_shape[:1]
 input_shape = training_data.shape
 label_shape = labels.shape
 fake_input  = jnp.zeros(input_shape)
@@ -578,6 +580,8 @@ params_rng, dropout_rng = jax.random.split(key_seq)
 # define and initialise model
 model = NCSNv2()
 variables = model.init({'params': params_rng}, fake_input, fake_label)
+# TODO: do I want dropout? If so also edit optimiser add dropout rng to optax args
+# variables = model.init({'params': params_rng, 'dropout': dropout_rng}, fake_input, fake_label)
 init_model_state, initial_params = variables.pop('params')
 
 # define optimiser using latest flax standards
@@ -595,12 +599,14 @@ model_state = optimizer.init(params)
 # name loss function
 loss_fn = anneal_dsm_score_estimation
 
-# A simple update loop
-train    = True
-plot     = False
-samples  = training_data
+# the training loop
+train       = True
+plot_scores = False
+plot_loss   = True
+samples     = training_data
 from tqdm import tqdm
 
+# TODO: make updates to store and save the model state opposed to the model params
 if train:
   loss_vector = np.zeros(n_steps)
   for i in tqdm(range(n_steps), desc='training model'):
@@ -608,14 +614,13 @@ if train:
     updates, model_state = optimizer.update(grads, model_state)
     params = optax.apply_updates(params, updates)
     loss_vector[i] = loss_fn(params, model, samples, labels, sigmas, key_seq)
-    #print(f'loss at step {i}: {loss_vector[i]}')
+    #if (i > 0): print(f'loss at step {i}: {loss_vector[i]} loss at prev step {loss_vector[i-1]}')
     # make plot to see evolution
-    if (plot): plot_evolve(params, samples, i, labels)
+    if (plot_scores): plot_evolve(params, samples, i, labels)
   print(f'initial loss: {loss_vector[0]}')
   print(f'final loss: {loss_vector[-1]}')
   
-
-if plot:
+if plot_loss:
   fig , ax = plt.subplots(1,1,figsize=(12, 8), facecolor='white',dpi = 70)
   steps = range(0,n_steps)
   plt.plot(steps,loss_vector, alpha = 0.80, zorder=0)
@@ -626,19 +631,19 @@ if plot:
   plt.savefig('loss_evolution.png',facecolor='white',dpi=300)
 
 
-# In[ ]:
+# In[8]:
 
 
 # ------------------------- #
 # langevin dynamic sampling #
 # ------------------------- #
-
 def anneal_Langevin_dynamics(x_mod, scorenet, params, sigmas, rng, n_steps_each=100, 
                                 step_lr=0.000008,denoise=True):
     # initialise arrays for images and scores
     images = []
-    scores  = []
+    scores = []
 
+    # loop over noise levels from high to low for sample generation
     for c, sigma in enumerate(sigmas):
         labels = jax.numpy.ones(x_mod.shape[0],dtype=np.int8) * c
         step_size = step_lr * (sigma / sigmas[-1]) ** 2
@@ -646,57 +651,76 @@ def anneal_Langevin_dynamics(x_mod, scorenet, params, sigmas, rng, n_steps_each=
         for s in tqdm(range(n_steps_each),desc=desc):
             grad = scorenet.apply({'params' : params}, x_mod, labels)
             noise = jax.random.normal(rng, shape=x_mod.shape)
-            x_mod = x_mod + step_size * grad + noise * np.sqrt(step_size * 2)
-            # store the progress per step
-            #if (c == len(sigmas) - 1):
-            images.append(x_mod)
-            scores.append(grad)
+            x_mod = x_mod + step_size * grad + noise * jax.numpy.sqrt(step_size * 2)
+            images.append(x_mod[0].squeeze())
+            scores.append(grad[0].squeeze())
 
+    # add a final denoising step is desired
     if denoise:
         last_noise = (len(sigmas) - 1) * jax.numpy.ones(x_mod.shape[0], dtype=np.int8)
         last_grad = scorenet.apply({'params' : params}, x_mod, last_noise)
         x_mod = x_mod + sigmas[-1] ** 2 * last_grad
-        images.append(x_mod)
-        scores.append(last_grad)
+        images.append(x_mod[0].squeeze())
+        scores.append(last_grad[0].squeeze())
 
     return images, scores
 
+# TODO: JIT compile the function for serious speed ups in the for loop
+# think will need static model args - use functool.partial(XXXX)?
+#anneal_Langevin_dynamics = jax.jit(anneal_Langevin_dynamics)
 
-# In[ ]:
+
+# In[9]:
 
 
 # ---------------- #
 # testing sampling #
 # ---------------- #
-samples = data_jax[key_seq]
-gaussian_noise = jax.random.normal(key_seq, shape=samples.shape)
+n_samples      = 1                               # number of samples to generate
+sample_steps   = 30                              # number of steps to take at each noise level
+shape_array    = jnp.array(range(0, n_samples))  # run Langevin dynamics on a single sample
+data_shape     = data_jax[shape_array]           # get the data shape for starting image
+gaussian_noise = jax.random.normal(key_seq, shape=data_shape.shape)
+
+# run the Langevin sampler
 images, scores = anneal_Langevin_dynamics(  gaussian_noise, 
                                             model, 
                                             params, 
                                             sigmas, 
                                             key_seq,
-                                            n_steps_each=64, 
+                                            n_steps_each=sample_steps, 
                                             denoise=True  )
 
 
-# In[ ]:
+# In[11]:
 
+
+# ------------------------------------------- #
+# plot sample evolution with generation steps #
+# ------------------------------------------- #
+# NOTE: for single sample data, easy to adjust if running multiple samples
 
 images_array = np.array(images)
 col_map = cmr.lilac
 fig , ax = plt.subplots(2,5,figsize=(16, 7), facecolor='white',dpi = 70)
 plt_idx = int( len(images_array) / 10 )
 n_panels = 7
-step_array = [0, 2, 4, 8, 16, 32, 64]
+step_array =  range(0, sample_steps, int(sample_steps / (n_panels - 1)) )
 for i in range(n_panels):
     plt.subplots_adjust(wspace=0.05, hspace=0.05)
     plt.subplot(1,n_panels,i + 1)
-    step = step_array[i] * 10
-    name = 'step ' + str(int( step / 10 ))
-    plt.title(name, fontsize = 24)
-    plt.imshow(images_array[step][0], cmap=col_map)
-    plt.axis('off')
+    if (i < n_panels - 1):
+        step = step_array[i] * num_scales # note num_scales factor is for the number of noise levels
+        name = 'step ' + str(int( step / num_scales ))
+        plt.title(name, fontsize = 24)
+        plt.imshow(images_array[step], cmap=col_map)
+        plt.axis('off')
+    else: 
+        name = 'final step ' + str(int( sample_steps ))
+        plt.title(name, fontsize = 24)
+        plt.imshow(images_array[-1], cmap=col_map)
+        plt.axis('off')
 plt.tight_layout()
-plt.savefig('langevin_evolution_panel7.png',facecolor='white',dpi=300)
+plt.savefig('langevin_sampling_panels.png',facecolor='white',dpi=300)
 plt.show()
 

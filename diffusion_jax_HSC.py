@@ -555,13 +555,13 @@ def plot_evolve(params,sample,step, labels):
 # model training and init params
 key_seq     = jax.random.PRNGKey(42)                # random seed
 n_epochs    = 5                                    # number of epochs
-batch_size  = 10                                    # batch size
+batch_size  = 64                                    # batch size
 lr          = 1e-4                                  # learning rate
 im_size     = 32                                    # image size
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-data_jax = data_jax[0:50]
+data_jax = data_jax[0:1000]
 batch = jnp.array(range(0, batch_size))
 training_data_init = data_jax[batch]
 batch_per_epoch = len(data_jax) // batch_size
@@ -636,13 +636,13 @@ if plot_loss:
   steps = range(0,n_epochs)
   plt.plot(steps,loss_vector, alpha = 0.80, zorder=0)
   #plt.scatter(steps,loss_vector, s=20, zorder=1)
-  plt.xlabel('training steps', fontsize = 30)
+  plt.xlabel('training epochs', fontsize = 30)
   plt.ylabel('cross-entropy loss (arb)', fontsize = 30)
   plt.tight_layout()
   plt.savefig('loss_evolution.png',facecolor='white',dpi=300)
 
 
-# In[ ]:
+# In[8]:
 
 
 # ------------------------- #
@@ -681,7 +681,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, params, sigmas, rng, n_steps_each=
 #anneal_Langevin_dynamics = jax.jit(anneal_Langevin_dynamics)
 
 
-# In[ ]:
+# In[9]:
 
 
 # ---------------- #

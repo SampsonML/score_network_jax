@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 # ------------------------------------------------------------------------------ #
@@ -48,7 +48,7 @@ from jax.lib import xla_bridge
 print(f'Device found is: {xla_bridge.get_backend().platform}')
 
 
-# In[2]:
+# In[ ]:
 
 
 """Common layers for defining score networks.
@@ -335,7 +335,7 @@ class ConditionalResidualBlock(nn.Module):
     return h + shortcut
 
 
-# In[3]:
+# In[ ]:
 
 
 # --------------------------------------------------------------------------- #
@@ -366,12 +366,18 @@ class NCSNv2(nn.Module):
     act           = nn.elu                # activation function
     normalizer    = InstanceNorm2dPlus    # normalization function
     interpolation = 'bilinear'            # interpolation method for upsample
+    data_centered = False                # whether data is already centered
     
     # data already centered
-    h = x
+    if not data_centered:
+      h = 2 * x - 1.
+    else:
+      h = x
     
     # Begin the U-Net
     h = conv3x3(h, nf, stride=1, bias=True)
+    
+    # TODO: check the size of nf is correct
 
     # ResNet backbone
     h = ResidualBlock(nf, resample=None, act=act, normalization=normalizer)(h)
@@ -423,7 +429,7 @@ class NCSNv2(nn.Module):
 
 
 
-# In[4]:
+# In[ ]:
 
 
 # ---------------------------------------------------------- #
@@ -457,7 +463,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     return loss
 
 
-# In[5]:
+# In[ ]:
 
 
 # ------------------------------------------------------------ #
@@ -498,7 +504,7 @@ data_jax = jnp.array(dataset)
 data_jax = jax.numpy.expand_dims(data_jax, axis=-1)
 
 
-# In[6]:
+# In[ ]:
 
 
 # ------------------------------ #
@@ -539,7 +545,7 @@ def plot_evolve(params,sample,step, labels):
     plt.close()
 
 
-# In[7]:
+# In[ ]:
 
 
 # ------------------- #
@@ -551,8 +557,8 @@ def plot_evolve(params,sample,step, labels):
 # model training and init params
 key_seq     = jax.random.PRNGKey(42)                # random seed
 n_epochs    = 50                                    # number of epochs
-n_steps     = 50                                    # number of steps per epoch
-batch_size  = 1                                    # batch size
+n_steps     = 75                                    # number of steps per epoch
+batch_size  = 6                                    # batch size
 lr          = 1e-4                                  # learning rate
 im_size     = 64                                    # image size
 
@@ -633,7 +639,7 @@ if plot_loss:
   plt.savefig('loss_evolution.png',facecolor='white',dpi=300)
 
 
-# In[8]:
+# In[ ]:
 
 
 # ------------------------- #
@@ -672,7 +678,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, params, sigmas, rng, n_steps_each=
 #anneal_Langevin_dynamics = jax.jit(anneal_Langevin_dynamics)
 
 
-# In[9]:
+# In[ ]:
 
 
 # ---------------- #
@@ -680,9 +686,9 @@ def anneal_Langevin_dynamics(x_mod, scorenet, params, sigmas, rng, n_steps_each=
 # ---------------- #
 n_samples      = 1                               # number of samples to generate
 sample_steps   = 30                              # number of steps to take at each noise level
-shape_array    = jnp.array(range(0, n_samples))  # run Langevin dynamics on a single sample
+shape_array    = jnp.array(range(0, n_samples))  # run Langevin dynamics on n_samples
 data_shape     = data_jax[shape_array]           # get the data shape for starting image
-gaussian_noise = jax.random.normal(key_seq, shape=data_shape.shape)
+gaussian_noise = jax.random.normal(key_seq, shape=data_shape.shape) # Initial noise image/data
 
 # run the Langevin sampler
 images, scores = anneal_Langevin_dynamics(  gaussian_noise, 
@@ -694,7 +700,7 @@ images, scores = anneal_Langevin_dynamics(  gaussian_noise,
                                             denoise=True  )
 
 
-# In[11]:
+# In[ ]:
 
 
 # ------------------------------------------- #

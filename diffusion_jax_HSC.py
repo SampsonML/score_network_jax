@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
+# In[1]:
 
 
 # ------------------------------------------------------------------------------ #
@@ -48,7 +48,7 @@ from jax.lib import xla_bridge
 print(f'Device found is: {xla_bridge.get_backend().platform}')
 
 
-# In[ ]:
+# In[2]:
 
 
 """Common layers for defining score networks.
@@ -335,7 +335,7 @@ class ConditionalResidualBlock(nn.Module):
     return h + shortcut
 
 
-# In[ ]:
+# In[3]:
 
 
 # --------------------------------------------------------------------------- #
@@ -361,7 +361,7 @@ class NCSNv2(nn.Module):
     sigmas        = jnp.exp(jnp.linspace(jnp.log(sigma_end), 
                               jnp.log(sigma_begin),num_scales))
     sigmas = jax.numpy.flip(sigmas)
-    im_size       = 64                    # image size
+    im_size       = 32                    # image size
     nf            = 128                   # number of filters
     act           = nn.elu                # activation function
     normalizer    = InstanceNorm2dPlus    # normalization function
@@ -429,7 +429,7 @@ class NCSNv2(nn.Module):
 
 
 
-# In[ ]:
+# In[4]:
 
 
 # ---------------------------------------------------------- #
@@ -441,14 +441,15 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     """
     Loss function for annealed score estimation
     -------------------------------------------
-    Inputs: params - the model parameters
-            model - the score neural network
-            samples - the samples from the data distribution
-            labels - the noise scale labels
-            sigmas - the noise scales
-            key - the jax random key
+    Inputs: params:  - the model parameters
+            model:   - the score neural network
+            samples: - the samples from the data distribution
+            labels:  - the noise scale labels
+            sigmas:  - the noise scales
+            key:     - the jax random key
 
     Output: loss - the loss value
+    -------------------------------------------
     """
     used_sigmas = sigmas[labels].reshape((samples.shape[0], 
                                           *([1] * len(samples.shape[1:]))))
@@ -463,7 +464,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     return loss
 
 
-# In[ ]:
+# In[5]:
 
 
 # ------------------------------------------------------------ #
@@ -473,7 +474,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
 # ------------------------------------------------------------ #
 
 # load in data  low res
-"""
+
 box_size = 31
 dataname = 'sources_box' + str(box_size) + '.npy'     
 dataset = np.load(dataname)
@@ -484,8 +485,8 @@ for i in range(len(dataset)):
     data_padded_tmp = np.pad(dataset[i], ((0,1),(0,1)), 'constant')
     data_padded_31.append(data_padded_tmp)
 dataset = np.array( data_padded_31 )
-"""
 
+"""
 # load in data  high res
 box_size = 61
 dataname = 'sources_box' + str(box_size) + '.npy'     
@@ -497,14 +498,13 @@ for i in range(len(dataset)):
     data_padded_tmp = np.pad(dataset[i], ((1,2),(1,2)), 'constant')
     data_padded_61.append(data_padded_tmp)
 dataset = np.array( data_padded_61 )
-
+"""
 # convert dataset to jax array
+dataset = np.expand_dims(dataset, axis=-1)
 data_jax = jnp.array(dataset)
-# expand dimensions for channel dim
-data_jax = jax.numpy.expand_dims(data_jax, axis=-1)
 
 
-# In[ ]:
+# In[6]:
 
 
 # ------------------------------ #
@@ -545,28 +545,27 @@ def plot_evolve(params,sample,step, labels):
     plt.close()
 
 
-# In[ ]:
+# In[7]:
 
 
 # ------------------- #
 # model training step #
 # ------------------- #
-# TODO: write a proper dataloader to load in mini-batches of data
-# see https://wandb.ai/jax-series/simple-training-loop/reports/Writing-a-Training-Loop-in-JAX-FLAX--VmlldzoyMzA4ODEy
 
 # model training and init params
 key_seq     = jax.random.PRNGKey(42)                # random seed
 n_epochs    = 50                                    # number of epochs
-n_steps     = 75                                    # number of steps per epoch
-batch_size  = 6                                    # batch size
+n_steps     = 100                                    # number of steps per epoch
+batch_size  = 10                                    # batch size
 lr          = 1e-4                                  # learning rate
-im_size     = 64                                    # image size
+im_size     = 32                                    # image size
 
-# construct the training data
-# TODO: convert this to proper dataloader
-# currently will run on just a single mini-batch of data
+# construct the training data 
+# for testing limit size until GPU HPC is available
+data_jax = data_jax[0:50]
 batch = jnp.array(range(0, batch_size))
-training_data = data_jax[batch]
+training_data_init = data_jax[batch]
+batch_per_epoch = len(data_jax) // batch_size
 
 # define noise levels and noise params
 sigma_begin = 1
@@ -575,11 +574,11 @@ num_scales  = 10
 sigmas      = jnp.exp(jnp.linspace(jnp.log(sigma_end), 
                         jnp.log(sigma_begin),num_scales))
 sigmas = jax.numpy.flip(sigmas)
-labels = jax.random.randint(key_seq, (len(training_data),), 
+labels = jax.random.randint(key_seq, (len(training_data_init),), 
                             minval=0, maxval=len(sigmas), dtype=jnp.int32)
 
 # model init variables
-input_shape = training_data.shape
+input_shape = training_data_init.shape
 label_shape = labels.shape
 fake_input  = jnp.zeros(input_shape)
 fake_label  = jnp.zeros(label_shape, dtype=jnp.int32)
@@ -611,23 +610,28 @@ loss_fn = anneal_dsm_score_estimation
 train       = True
 plot_scores = False
 plot_loss   = True
-samples     = training_data
 from tqdm import tqdm
 
 # TODO: make updates to store and save the model state opposed to the model params
 if train:
   loss_vector = np.zeros(n_steps)
-  for i in tqdm(range(n_steps), desc='training model'):
-    grads = jax.grad(loss_fn)(params, model, samples, labels, sigmas, key_seq)
-    updates, model_state = optimizer.update(grads, model_state)
-    params = optax.apply_updates(params, updates)
-    loss_vector[i] = loss_fn(params, model, samples, labels, sigmas, key_seq)
-    #if (i > 0): print(f'loss at step {i}: {loss_vector[i]} loss at prev step {loss_vector[i-1]}')
-    # make plot to see evolution
-    if (plot_scores): plot_evolve(params, samples, i, labels)
+  for i in tqdm(range(n_epochs), desc='training model'):
+    for batch_idx in range(batch_per_epoch):
+      batch_length = jnp.array(range(batch_idx*batch_size, (batch_idx+1)*batch_size))
+      samples = data_jax[batch_length]
+      labels = jax.random.randint(key_seq, (len(samples),), 
+                            minval=0, maxval=len(sigmas), dtype=jnp.int32)
+      grads = jax.grad(loss_fn)(params, model, samples, labels, sigmas, key_seq)
+      updates, model_state = optimizer.update(grads, model_state)
+      params = optax.apply_updates(params, updates)
+      loss_vector[i] = loss_fn(params, model, samples, labels, sigmas, key_seq)
+      if (i > 0): print(f'loss at step {i}: {loss_vector[i]} loss at prev step {loss_vector[i-1]}')
+      # make plot to see evolution
+      if (plot_scores): plot_evolve(params, samples, i, labels)
   print(f'initial loss: {loss_vector[0]}')
   print(f'final loss: {loss_vector[-1]}')
-  
+
+
 if plot_loss:
   fig , ax = plt.subplots(1,1,figsize=(12, 8), facecolor='white',dpi = 70)
   steps = range(0,n_steps)

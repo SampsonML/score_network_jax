@@ -554,8 +554,7 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq     = jax.random.PRNGKey(42)                # random seed
-n_epochs    = 50                                    # number of epochs
-n_steps     = 100                                    # number of steps per epoch
+n_epochs    = 5                                    # number of epochs
 batch_size  = 10                                    # batch size
 lr          = 1e-4                                  # learning rate
 im_size     = 32                                    # image size
@@ -614,7 +613,7 @@ from tqdm import tqdm
 
 # TODO: make updates to store and save the model state opposed to the model params
 if train:
-  loss_vector = np.zeros(n_steps)
+  loss_vector = np.zeros(n_epochs)
   for i in tqdm(range(n_epochs), desc='training model'):
     for batch_idx in range(batch_per_epoch):
       batch_length = jnp.array(range(batch_idx*batch_size, (batch_idx+1)*batch_size))
@@ -624,17 +623,17 @@ if train:
       grads = jax.grad(loss_fn)(params, model, samples, labels, sigmas, key_seq)
       updates, model_state = optimizer.update(grads, model_state)
       params = optax.apply_updates(params, updates)
-      loss_vector[i] = loss_fn(params, model, samples, labels, sigmas, key_seq)
-      if (i > 0): print(f'loss at step {i}: {loss_vector[i]} loss at prev step {loss_vector[i-1]}')
-      # make plot to see evolution
-      if (plot_scores): plot_evolve(params, samples, i, labels)
+    # make plot to see evolution
+    loss_vector[i] = loss_fn(params, model, samples, labels, sigmas, key_seq)
+    if (plot_scores): plot_evolve(params, samples, i, labels)
+    if (i > 0): print(f'loss at step {i}: {loss_vector[i]} loss at prev step {loss_vector[i-1]}')
   print(f'initial loss: {loss_vector[0]}')
   print(f'final loss: {loss_vector[-1]}')
 
 
 if plot_loss:
   fig , ax = plt.subplots(1,1,figsize=(12, 8), facecolor='white',dpi = 70)
-  steps = range(0,n_steps)
+  steps = range(0,n_epochs)
   plt.plot(steps,loss_vector, alpha = 0.80, zorder=0)
   #plt.scatter(steps,loss_vector, s=20, zorder=1)
   plt.xlabel('training steps', fontsize = 30)

@@ -427,7 +427,11 @@ class NCSNv2(nn.Module):
     return h / used_sigmas
 
 
+<<<<<<< HEAD
+# In[4]:
+=======
 # In[17]:
+>>>>>>> 00abb20108c23bb2d28503b61f5d193f2392fc47
 
 
 # ---------------------------------------------------------- #
@@ -662,7 +666,11 @@ if plot_loss:
   plt.savefig('loss_evolution.png',facecolor='white',dpi=300)  
 
 
+<<<<<<< HEAD
+# In[11]:
+=======
 # In[21]:
+>>>>>>> 00abb20108c23bb2d28503b61f5d193f2392fc47
 
 
 # ------------------------- #
@@ -701,7 +709,11 @@ def anneal_Langevin_dynamics(x_mod, scorenet, sigmas, rng, n_steps_each=100,
 #anneal_Langevin_dynamics = jax.jit(anneal_Langevin_dynamics)
 
 
+<<<<<<< HEAD
+# In[12]:
+=======
 # In[22]:
+>>>>>>> 00abb20108c23bb2d28503b61f5d193f2392fc47
 
 
 # ---------------- #

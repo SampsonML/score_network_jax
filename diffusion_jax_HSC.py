@@ -467,7 +467,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
 # ------------------------------------------------------------ #
 
 # load in data  low res
-
+"""
 box_size = 31
 dataname = 'sources_box' + str(box_size) + '.npy'     
 dataset = np.load(dataname)
@@ -478,8 +478,18 @@ for i in range(len(dataset)):
     data_padded_tmp = np.pad(dataset[i], ((0,1),(0,1)), 'constant')
     data_padded_31.append(data_padded_tmp)
 dataset = np.array( data_padded_31 )
-
 """
+box_size = 51
+dataname = 'sources_box' + str(box_size) + '.npy'     
+dataset = np.load(dataname)
+
+# perform zero-padding of the data to get desired dimensions
+data_padded_51 = []
+for i in range(len(dataset)):
+    data_padded_tmp = np.pad(dataset[i], ((6,7),(6,7)), 'constant')
+    data_padded_51.append(data_padded_tmp)
+dataset_51 = np.array( data_padded_51 )
+
 # load in data  high res
 box_size = 61
 dataname = 'sources_box' + str(box_size) + '.npy'     
@@ -490,8 +500,14 @@ data_padded_61 = []
 for i in range(len(dataset)):
     data_padded_tmp = np.pad(dataset[i], ((1,2),(1,2)), 'constant')
     data_padded_61.append(data_padded_tmp)
+#dataset = np.array( data_padded_61 )
+
+# add a loop to add 51 and 61 data together
+for i in range(len(dataset_51)):
+    data_padded_61.append( dataset_51[i] )
+  
 dataset = np.array( data_padded_61 )
-"""
+
 # convert dataset to jax array
 dataset = np.expand_dims(dataset, axis=-1)
 data_jax = jnp.array(dataset)
@@ -597,7 +613,7 @@ model_state = optimizer.init(params)
 loss_fn = anneal_dsm_score_estimation
 
 # training settings
-CKPT_DIR    = 'ckpts_32'
+CKPT_DIR    = 'ckpts_64_big'
 train       = True
 plot_scores = False
 plot_loss   = True
@@ -656,7 +672,7 @@ if plot_loss:
   plt.xlabel('training epochs', fontsize = 30)
   plt.ylabel('cross-entropy loss (arb)', fontsize = 30)
   plt.tight_layout()
-  plt.savefig('loss_evolution.png',facecolor='white',dpi=300)  
+  plt.savefig('loss_evolution_64.png',facecolor='white',dpi=300)  
 
 
 # In[ ]:
@@ -752,6 +768,6 @@ for i in range(n_panels):
         plt.imshow(images_array[-1], cmap=col_map)
         plt.axis('off')
 plt.tight_layout()
-plt.savefig('langevin_sampling_panels_64.png',facecolor='white',dpi=300)
+plt.savefig('langevin_sampling_panels_64_big.png',facecolor='white',dpi=300)
 plt.show()
 

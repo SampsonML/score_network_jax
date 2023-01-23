@@ -4,7 +4,7 @@
 #SBATCH --mem=100gb                                # Job memory request
 #SBATCH --time=24:00:00                            # Time limit hrs:min:sec
 #SBATCH --gres=gpu:1                               # Run on the GPU
-
+#SBATCH --constraint=gpu80                         # use 80 gig GPU
 
 echo "Running ML testing on a single GPU"
 

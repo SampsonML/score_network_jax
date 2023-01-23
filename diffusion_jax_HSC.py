@@ -28,21 +28,20 @@ import functools
 import math
 import string
 from typing import Any, Sequence, Optional
+import flax
 import flax.linen as nn
+from flax.training import train_state, checkpoints
+import optax
 import jax
 import jax.nn as jnn
 import jax.numpy as jnp
 import jax.nn.initializers as init
+from jax import jit
 import matplotlib as mpl
 from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
-import flax
-import optax
-from jax import jit
-from tqdm import tqdm
-Path("outputs").mkdir(exist_ok=True)
 
 # test we can find correct device
 from jax.lib import xla_bridge
@@ -362,7 +361,7 @@ class NCSNv2(nn.Module):
     sigmas        = jnp.exp(jnp.linspace(jnp.log(sigma_end), 
                               jnp.log(sigma_begin),num_scales))
     sigmas = jax.numpy.flip(sigmas)
-    im_size       = 32                    # image size
+    im_size       = 64                    # image size
     nf            = 128                   # number of filters
     act           = nn.elu                # activation function
     normalizer    = InstanceNorm2dPlus    # normalization function
@@ -428,8 +427,6 @@ class NCSNv2(nn.Module):
     return h / used_sigmas
 
 
-
-
 # In[4]:
 
 
@@ -458,9 +455,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     perturbed_samples = samples + noise * used_sigmas
     target = -noise / used_sigmas**2
     scores = model.apply({'params': params}, perturbed_samples, labels)
-    #losses = jnp.square(score - target)
-    loss_1 = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) #* used_sigmas.squeeze() ** anneal_power
-    loss = loss_1 * used_sigmas**2 
+    loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * used_sigmas**2 
     loss = jnp.mean(loss)
     return loss
 
@@ -475,7 +470,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
 # ------------------------------------------------------------ #
 
 # load in data  low res
-
+"""
 box_size = 31
 dataname = 'sources_box' + str(box_size) + '.npy'     
 dataset = np.load(dataname)
@@ -486,8 +481,8 @@ for i in range(len(dataset)):
     data_padded_tmp = np.pad(dataset[i], ((0,1),(0,1)), 'constant')
     data_padded_31.append(data_padded_tmp)
 dataset = np.array( data_padded_31 )
-
 """
+
 # load in data  high res
 box_size = 61
 dataname = 'sources_box' + str(box_size) + '.npy'     
@@ -499,7 +494,7 @@ for i in range(len(dataset)):
     data_padded_tmp = np.pad(dataset[i], ((1,2),(1,2)), 'constant')
     data_padded_61.append(data_padded_tmp)
 dataset = np.array( data_padded_61 )
-"""
+
 # convert dataset to jax array
 dataset = np.expand_dims(dataset, axis=-1)
 data_jax = jnp.array(dataset)
@@ -555,14 +550,14 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq     = jax.random.PRNGKey(42)                # random seed
-n_epochs    = 3                                    # number of epochs
-batch_size  = 32                                    # batch size
+n_epochs    = 75                                    # number of epochs
+batch_size  = 1                                    # batch size
 lr          = 1e-4                                  # learning rate
-im_size     = 32                                    # image size
+im_size     = 64                                    # image size
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-#data_jax = data_jax[0:200] # DELETE for full training
+data_jax = data_jax[0:1] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = data_jax[batch]
 batch_per_epoch = len(data_jax) // batch_size
@@ -587,8 +582,6 @@ params_rng, dropout_rng = jax.random.split(key_seq)
 # define and initialise model
 model = NCSNv2()
 variables = model.init({'params': params_rng}, fake_input, fake_label)
-# TODO: do I want dropout? If so also edit optimiser add dropout rng to optax args
-# variables = model.init({'params': params_rng, 'dropout': dropout_rng}, fake_input, fake_label)
 init_model_state, initial_params = variables.pop('params')
 
 # define optimiser using latest flax standards
@@ -607,10 +600,11 @@ model_state = optimizer.init(params)
 loss_fn = anneal_dsm_score_estimation
 
 # training settings
-train       = True
+CKPT_DIR    = 'ckpts'
+train       = False
 plot_scores = False
 plot_loss   = True
-verbose     = True
+verbose     = False
 best_loss   = 1e15
 epoch_loss  = 0
 
@@ -636,10 +630,17 @@ if train:
       params = optax.apply_updates(params, updates)
       
     # store epoch loss and make plots
+    epoch_loss = epoch_loss / (batch_per_epoch * batch_size)
     loss_vector[i] = epoch_loss
     if loss_vector[i] < best_loss:
       best_params = params
       best_loss   = loss_vector[i]
+      # testing saving training state
+      state = train_state.TrainState.create(  apply_fn=model.apply,
+                                              params=best_params,
+                                              tx=optimizer )
+      checkpoints.save_checkpoint(ckpt_dir=CKPT_DIR, target=state, step=i, 
+                                  prefix='scorenet_state_', overwrite=True)  
     epoch_loss = 0
     
     # plots and printing outputs
@@ -654,20 +655,20 @@ if plot_loss:
   fig , ax = plt.subplots(1,1,figsize=(12, 8), facecolor='white',dpi = 70)
   steps = range(0,n_epochs)
   plt.plot(steps,loss_vector, alpha = 0.80, zorder=0)
-  plt.scatter(steps,loss_vector, s=20, zorder=1)
+  #plt.scatter(steps,loss_vector, s=20, zorder=1)
   plt.xlabel('training epochs', fontsize = 30)
   plt.ylabel('cross-entropy loss (arb)', fontsize = 30)
   plt.tight_layout()
-  plt.savefig('loss_evolution.png',facecolor='white',dpi=300)
+  plt.savefig('loss_evolution.png',facecolor='white',dpi=300)  
 
 
-# In[ ]:
+# In[11]:
 
 
 # ------------------------- #
 # langevin dynamic sampling #
 # ------------------------- #
-def anneal_Langevin_dynamics(x_mod, scorenet, params, sigmas, rng, n_steps_each=100, 
+def anneal_Langevin_dynamics(x_mod, scorenet, sigmas, rng, n_steps_each=100, 
                                 step_lr=0.000008,denoise=True):
     # initialise arrays for images and scores
     images = []
@@ -679,7 +680,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, params, sigmas, rng, n_steps_each=
         step_size = step_lr * (sigma / sigmas[-1]) ** 2
         desc = 'sampling at noise level: ' + str(c + 1) + ' / ' + str(len(sigmas))
         for s in tqdm(range(n_steps_each),desc=desc):
-            grad = scorenet.apply({'params' : params}, x_mod, labels)
+            grad = scorenet.apply_fn({'params' : scorenet.params}, x_mod, labels)
             noise = jax.random.normal(rng, shape=x_mod.shape)
             x_mod = x_mod + step_size * grad + noise * jax.numpy.sqrt(step_size * 2)
             images.append(x_mod[0].squeeze())
@@ -688,7 +689,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, params, sigmas, rng, n_steps_each=
     # add a final denoising step is desired
     if denoise:
         last_noise = (len(sigmas) - 1) * jax.numpy.ones(x_mod.shape[0], dtype=np.int8)
-        last_grad = scorenet.apply({'params' : params}, x_mod, last_noise)
+        last_grad = scorenet.apply_fn({'params' : scorenet.params}, x_mod, last_noise)
         x_mod = x_mod + sigmas[-1] ** 2 * last_grad
         images.append(x_mod[0].squeeze())
         scores.append(last_grad[0].squeeze())
@@ -700,22 +701,25 @@ def anneal_Langevin_dynamics(x_mod, scorenet, params, sigmas, rng, n_steps_each=
 #anneal_Langevin_dynamics = jax.jit(anneal_Langevin_dynamics)
 
 
-# In[ ]:
+# In[12]:
 
 
 # ---------------- #
 # testing sampling #
 # ---------------- #
 n_samples      = 1                               # number of samples to generate
-sample_steps   = 30                              # number of steps to take at each noise level
+sample_steps   = 50                              # number of steps to take at each noise level
 shape_array    = jnp.array(range(0, n_samples))  # run Langevin dynamics on n_samples
 data_shape     = data_jax[shape_array]           # get the data shape for starting image
 gaussian_noise = jax.random.normal(key_seq, shape=data_shape.shape) # Initial noise image/data
 
+# load best model 
+# TODO: possibly implement a way to load the model itself instead of model.apply()
+best_state  = checkpoints.restore_checkpoint(ckpt_dir=CKPT_DIR, target=state)
+
 # run the Langevin sampler
 images, scores = anneal_Langevin_dynamics(  gaussian_noise, 
-                                            model, 
-                                            best_params, 
+                                            best_state, 
                                             sigmas, 
                                             key_seq,
                                             n_steps_each=sample_steps, 

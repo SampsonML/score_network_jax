@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[14]:
 
 
 # ------------------------------------------------------------------------------ #
@@ -48,7 +48,7 @@ from jax.lib import xla_bridge
 print(f'Device found is: {xla_bridge.get_backend().platform}')
 
 
-# In[2]:
+# In[15]:
 
 
 """Common layers for defining score networks.
@@ -335,7 +335,7 @@ class ConditionalResidualBlock(nn.Module):
     return h + shortcut
 
 
-# In[3]:
+# In[16]:
 
 
 # --------------------------------------------------------------------------- #
@@ -427,7 +427,7 @@ class NCSNv2(nn.Module):
     return h / used_sigmas
 
 
-# In[4]:
+# In[17]:
 
 
 # ---------------------------------------------------------- #
@@ -460,7 +460,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     return loss
 
 
-# In[5]:
+# In[18]:
 
 
 # ------------------------------------------------------------ #
@@ -500,7 +500,7 @@ dataset = np.expand_dims(dataset, axis=-1)
 data_jax = jnp.array(dataset)
 
 
-# In[6]:
+# In[19]:
 
 
 # ------------------------------ #
@@ -541,7 +541,7 @@ def plot_evolve(params,sample,step, labels):
     plt.close()
 
 
-# In[7]:
+# In[20]:
 
 
 # ------------------- #
@@ -662,7 +662,7 @@ if plot_loss:
   plt.savefig('loss_evolution.png',facecolor='white',dpi=300)  
 
 
-# In[11]:
+# In[21]:
 
 
 # ------------------------- #
@@ -701,7 +701,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, sigmas, rng, n_steps_each=100,
 #anneal_Langevin_dynamics = jax.jit(anneal_Langevin_dynamics)
 
 
-# In[12]:
+# In[22]:
 
 
 # ---------------- #
@@ -726,7 +726,7 @@ images, scores = anneal_Langevin_dynamics(  gaussian_noise,
                                             denoise=True  )
 
 
-# In[ ]:
+# In[23]:
 
 
 # ------------------------------------------- #

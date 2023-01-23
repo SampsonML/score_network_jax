@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[14]:
+# In[ ]:
 
 
 # ------------------------------------------------------------------------------ #
@@ -48,7 +48,7 @@ from jax.lib import xla_bridge
 print(f'Device found is: {xla_bridge.get_backend().platform}')
 
 
-# In[15]:
+# In[ ]:
 
 
 """Common layers for defining score networks.
@@ -335,9 +335,6 @@ class ConditionalResidualBlock(nn.Module):
     return h + shortcut
 
 
-# In[16]:
-
-
 # --------------------------------------------------------------------------- #
 # JAX port of ncsnv2 - updated to work with                                   #
 # latest JAX/FLAX versions using optax over flax.optim                        #
@@ -427,11 +424,7 @@ class NCSNv2(nn.Module):
     return h / used_sigmas
 
 
-<<<<<<< HEAD
-# In[4]:
-=======
-# In[17]:
->>>>>>> 00abb20108c23bb2d28503b61f5d193f2392fc47
+# In[ ]:
 
 
 # ---------------------------------------------------------- #
@@ -464,7 +457,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     return loss
 
 
-# In[18]:
+# In[ ]:
 
 
 # ------------------------------------------------------------ #
@@ -504,7 +497,7 @@ dataset = np.expand_dims(dataset, axis=-1)
 data_jax = jnp.array(dataset)
 
 
-# In[19]:
+# In[ ]:
 
 
 # ------------------------------ #
@@ -545,7 +538,7 @@ def plot_evolve(params,sample,step, labels):
     plt.close()
 
 
-# In[20]:
+# In[ ]:
 
 
 # ------------------- #
@@ -605,7 +598,7 @@ loss_fn = anneal_dsm_score_estimation
 
 # training settings
 CKPT_DIR    = 'ckpts'
-train       = False
+train       = True
 plot_scores = False
 plot_loss   = True
 verbose     = False
@@ -666,11 +659,7 @@ if plot_loss:
   plt.savefig('loss_evolution.png',facecolor='white',dpi=300)  
 
 
-<<<<<<< HEAD
-# In[11]:
-=======
-# In[21]:
->>>>>>> 00abb20108c23bb2d28503b61f5d193f2392fc47
+# In[ ]:
 
 
 # ------------------------- #
@@ -709,11 +698,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, sigmas, rng, n_steps_each=100,
 #anneal_Langevin_dynamics = jax.jit(anneal_Langevin_dynamics)
 
 
-<<<<<<< HEAD
-# In[12]:
-=======
-# In[22]:
->>>>>>> 00abb20108c23bb2d28503b61f5d193f2392fc47
+# In[ ]:
 
 
 # ---------------- #
@@ -738,7 +723,7 @@ images, scores = anneal_Langevin_dynamics(  gaussian_noise,
                                             denoise=True  )
 
 
-# In[23]:
+# In[ ]:
 
 
 # ------------------------------------------- #

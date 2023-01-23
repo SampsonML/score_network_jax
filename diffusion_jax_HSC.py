@@ -555,14 +555,14 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq     = jax.random.PRNGKey(42)                # random seed
-n_epochs    = 5                                    # number of epochs
-batch_size  = 64                                    # batch size
+n_epochs    = 3                                    # number of epochs
+batch_size  = 32                                    # batch size
 lr          = 1e-4                                  # learning rate
 im_size     = 32                                    # image size
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-data_jax = data_jax[0:2000]
+#data_jax = data_jax[0:200] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = data_jax[batch]
 batch_per_epoch = len(data_jax) // batch_size
@@ -606,13 +606,16 @@ model_state = optimizer.init(params)
 # name loss function
 loss_fn = anneal_dsm_score_estimation
 
-# the training loop
+# training settings
 train       = True
 plot_scores = False
 plot_loss   = True
+verbose     = True
+best_loss   = 1e15
 epoch_loss  = 0
 
 # TODO: make updates to store and save the model state opposed to the model params
+# begin training loop storing params
 if train:
   loss_vector = np.zeros(n_epochs)
   for i in tqdm(range(n_epochs), desc='training model'):
@@ -634,9 +637,15 @@ if train:
       
     # store epoch loss and make plots
     loss_vector[i] = epoch_loss
+    if loss_vector[i] < best_loss:
+      best_params = params
+      best_loss   = loss_vector[i]
     epoch_loss = 0
+    
+    # plots and printing outputs
     if (plot_scores): plot_evolve(params, samples, i, labels)
-    if (i > 0): print(f'loss at step {i}: {loss_vector[i]} loss at prev step {loss_vector[i-1]}')
+    if ( (i > 0) and (verbose==True) ): 
+      print(f'loss at step {i}: {loss_vector[i]} loss at prev step {loss_vector[i-1]}')
   print(f'initial loss: {loss_vector[0]}')
   print(f'final loss: {loss_vector[-1]}')
 
@@ -645,7 +654,7 @@ if plot_loss:
   fig , ax = plt.subplots(1,1,figsize=(12, 8), facecolor='white',dpi = 70)
   steps = range(0,n_epochs)
   plt.plot(steps,loss_vector, alpha = 0.80, zorder=0)
-  #plt.scatter(steps,loss_vector, s=20, zorder=1)
+  plt.scatter(steps,loss_vector, s=20, zorder=1)
   plt.xlabel('training epochs', fontsize = 30)
   plt.ylabel('cross-entropy loss (arb)', fontsize = 30)
   plt.tight_layout()
@@ -706,7 +715,7 @@ gaussian_noise = jax.random.normal(key_seq, shape=data_shape.shape) # Initial no
 # run the Langevin sampler
 images, scores = anneal_Langevin_dynamics(  gaussian_noise, 
                                             model, 
-                                            params, 
+                                            best_params, 
                                             sigmas, 
                                             key_seq,
                                             n_steps_each=sample_steps, 

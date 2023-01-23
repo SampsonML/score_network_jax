@@ -41,6 +41,7 @@ from tqdm import tqdm
 import flax
 import optax
 from jax import jit
+from tqdm import tqdm
 Path("outputs").mkdir(exist_ok=True)
 
 # test we can find correct device
@@ -561,7 +562,7 @@ im_size     = 32                                    # image size
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-data_jax = data_jax[0:1000]
+data_jax = data_jax[0:2000]
 batch = jnp.array(range(0, batch_size))
 training_data_init = data_jax[batch]
 batch_per_epoch = len(data_jax) // batch_size
@@ -609,22 +610,31 @@ loss_fn = anneal_dsm_score_estimation
 train       = True
 plot_scores = False
 plot_loss   = True
-from tqdm import tqdm
+epoch_loss  = 0
 
 # TODO: make updates to store and save the model state opposed to the model params
 if train:
   loss_vector = np.zeros(n_epochs)
   for i in tqdm(range(n_epochs), desc='training model'):
     for batch_idx in range(batch_per_epoch):
+      
+      # set up batch and noise samples
       batch_length = jnp.array(range(batch_idx*batch_size, (batch_idx+1)*batch_size))
       samples = data_jax[batch_length]
       labels = jax.random.randint(key_seq, (len(samples),), 
                             minval=0, maxval=len(sigmas), dtype=jnp.int32)
-      grads = jax.grad(loss_fn)(params, model, samples, labels, sigmas, key_seq)
+      
+      # calculate gradients and loss
+      loss, grads = jax.value_and_grad(loss_fn)(params, model, samples, labels, sigmas, key_seq)
+      epoch_loss += loss
+      
+      # update the model params
       updates, model_state = optimizer.update(grads, model_state)
       params = optax.apply_updates(params, updates)
-    # make plot to see evolution
-    loss_vector[i] = loss_fn(params, model, samples, labels, sigmas, key_seq)
+      
+    # store epoch loss and make plots
+    loss_vector[i] = epoch_loss
+    epoch_loss = 0
     if (plot_scores): plot_evolve(params, samples, i, labels)
     if (i > 0): print(f'loss at step {i}: {loss_vector[i]} loss at prev step {loss_vector[i-1]}')
   print(f'initial loss: {loss_vector[0]}')
@@ -642,7 +652,7 @@ if plot_loss:
   plt.savefig('loss_evolution.png',facecolor='white',dpi=300)
 
 
-# In[8]:
+# In[ ]:
 
 
 # ------------------------- #
@@ -681,7 +691,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, params, sigmas, rng, n_steps_each=
 #anneal_Langevin_dynamics = jax.jit(anneal_Langevin_dynamics)
 
 
-# In[9]:
+# In[ ]:
 
 
 # ---------------- #

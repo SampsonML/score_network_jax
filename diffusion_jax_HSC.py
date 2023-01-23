@@ -358,7 +358,7 @@ class NCSNv2(nn.Module):
     sigmas        = jnp.exp(jnp.linspace(jnp.log(sigma_end), 
                               jnp.log(sigma_begin),num_scales))
     sigmas = jax.numpy.flip(sigmas)
-    im_size       = 64                    # image size
+    im_size       = 32                    # image size
     nf            = 128                   # number of filters
     act           = nn.elu                # activation function
     normalizer    = InstanceNorm2dPlus    # normalization function
@@ -467,7 +467,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
 # ------------------------------------------------------------ #
 
 # load in data  low res
-"""
+
 box_size = 31
 dataname = 'sources_box' + str(box_size) + '.npy'     
 dataset = np.load(dataname)
@@ -478,8 +478,8 @@ for i in range(len(dataset)):
     data_padded_tmp = np.pad(dataset[i], ((0,1),(0,1)), 'constant')
     data_padded_31.append(data_padded_tmp)
 dataset = np.array( data_padded_31 )
-"""
 
+"""
 # load in data  high res
 box_size = 61
 dataname = 'sources_box' + str(box_size) + '.npy'     
@@ -491,7 +491,7 @@ for i in range(len(dataset)):
     data_padded_tmp = np.pad(dataset[i], ((1,2),(1,2)), 'constant')
     data_padded_61.append(data_padded_tmp)
 dataset = np.array( data_padded_61 )
-
+"""
 # convert dataset to jax array
 dataset = np.expand_dims(dataset, axis=-1)
 data_jax = jnp.array(dataset)
@@ -547,14 +547,14 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq     = jax.random.PRNGKey(42)                # random seed
-n_epochs    = 75                                    # number of epochs
-batch_size  = 1                                    # batch size
+n_epochs    = 50                                    # number of epochs
+batch_size  = 32                                    # batch size
 lr          = 1e-4                                  # learning rate
-im_size     = 64                                    # image size
+im_size     = 32                                    # image size
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-data_jax = data_jax[0:1] # DELETE for full training
+#data_jax = data_jax[0:1] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = data_jax[batch]
 batch_per_epoch = len(data_jax) // batch_size

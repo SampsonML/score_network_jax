@@ -3,6 +3,7 @@
  - jaxlib>=0.1.59
  - flax>=0.3.4
  - optax>=0.0.9 (should auto-install with latest flax) 
+ - tensorflow>=2.X.X (for saving checkpints)
  - cmasher (optional but such pretty colourmaps)
 
 # if having GPU run issues you likely 

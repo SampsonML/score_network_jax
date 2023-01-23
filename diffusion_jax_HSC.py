@@ -467,7 +467,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
 # ------------------------------------------------------------ #
 
 # load in data  low res
-
+"""
 box_size = 31
 dataname = 'sources_box' + str(box_size) + '.npy'     
 dataset = np.load(dataname)
@@ -491,7 +491,7 @@ for i in range(len(dataset)):
     data_padded_tmp = np.pad(dataset[i], ((1,2),(1,2)), 'constant')
     data_padded_61.append(data_padded_tmp)
 dataset = np.array( data_padded_61 )
-"""
+
 # convert dataset to jax array
 dataset = np.expand_dims(dataset, axis=-1)
 data_jax = jnp.array(dataset)
@@ -547,10 +547,10 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq     = jax.random.PRNGKey(42)                # random seed
-n_epochs    = 50                                    # number of epochs
+n_epochs    = 10                                    # number of epochs
 batch_size  = 32                                    # batch size
 lr          = 1e-4                                  # learning rate
-im_size     = 32                                    # image size
+im_size     = 64                                    # image size
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
@@ -597,7 +597,7 @@ model_state = optimizer.init(params)
 loss_fn = anneal_dsm_score_estimation
 
 # training settings
-CKPT_DIR    = 'ckpts'
+CKPT_DIR    = 'ckpts_64'
 train       = True
 plot_scores = False
 plot_loss   = True
@@ -752,6 +752,6 @@ for i in range(n_panels):
         plt.imshow(images_array[-1], cmap=col_map)
         plt.axis('off')
 plt.tight_layout()
-plt.savefig('langevin_sampling_panels.png',facecolor='white',dpi=300)
+plt.savefig('langevin_sampling_panels_64.png',facecolor='white',dpi=300)
 plt.show()
 

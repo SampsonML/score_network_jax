@@ -1,0 +1,11 @@
+#!/bin/bash
+#SBATCH --job-name=score_training          # Job name
+#SBATCH --mail-user=matt.sampson@princeton.edu     # Where to send mail
+#SBATCH --mem=100gb                                # Job memory request
+#SBATCH --time=24:00:00                            # Time limit hrs:min:sec
+#SBATCH --gres=gpu:1                               # Run on the GPU
+
+
+echo "Running ML testing on a single GPU"
+
+python diffusion_jax_HSC.py

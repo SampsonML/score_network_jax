@@ -695,9 +695,8 @@ scorenet = model # nicer name for the model
 # load the weights and biases with pickle
 with open(filename, 'rb') as handle:
     best_params_new = pickle.load(handle)
-
-print('testing pickle loading scheme')
-print(best_params == best_params_new)
+    
+print(best_params_new)
 
 empty_state = train_state.TrainState.create(apply_fn=model.apply,
                                             params=params,

@@ -528,14 +528,14 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq     = jax.random.PRNGKey(42)                # random seed
-n_epochs    = 50                                    # number of epochs
-batch_size  = 32                                    # batch size
+n_epochs    = 75                                    # number of epochs
+batch_size  = 1                                    # batch size
 lr          = 1e-4                                  # learning rate
 im_size     = 64                                    # image size
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-#data_jax = data_jax[0:1] # DELETE for full training
+data_jax = data_jax[0:1] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = data_jax[batch]
 batch_per_epoch = len(data_jax) // batch_size
@@ -579,7 +579,7 @@ loss_fn = anneal_dsm_score_estimation
 
 # training settings
 CKPT_DIR    = 'ckpts_64'
-train       = False #True
+train       = True #True
 plot_scores = False
 plot_loss   = False #True
 verbose     = False

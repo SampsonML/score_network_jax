@@ -24,6 +24,7 @@ import functools
 import math
 import string
 from typing import Any, Sequence, Optional
+from flax.training import train_state, checkpoints
 import flax
 import flax.linen as nn
 import optax
@@ -613,8 +614,12 @@ if train:
     if loss_vector[i] < best_loss:
       best_params = params
       best_loss   = loss_vector[i]
-      param_path = CKPT_DIR + '/scorenet_params.npy'
-      np.save(param_path, best_params, allow_pickle=True)
+      # testing saving training state
+      state = train_state.TrainState.create(  apply_fn=model.apply,
+                                              params=best_params,
+                                              tx=optimizer )
+      checkpoints.save_checkpoint(ckpt_dir=CKPT_DIR, target=state, step=i, 
+                                  prefix='scorenet_state_', overwrite=True)
     epoch_loss = 0
     
     # plots and printing outputs
@@ -638,7 +643,7 @@ if (plot_loss==True) and (train==True):
 # ------------------------- #
 # langevin dynamic sampling #
 # ------------------------- #
-def anneal_Langevin_dynamics(x_mod, scorenet, best_params, sigmas, rng, n_steps_each=100, 
+def anneal_Langevin_dynamics(x_mod, scorenet, sigmas, rng, n_steps_each=100, 
                                 step_lr=0.000008,denoise=True):
     # initialise arrays for images and scores
     images = []
@@ -650,7 +655,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, best_params, sigmas, rng, n_steps_
         step_size = step_lr * (sigma / sigmas[-1]) ** 2
         desc = 'sampling at noise level: ' + str(c + 1) + ' / ' + str(len(sigmas))
         for s in tqdm(range(n_steps_each),desc=desc):
-            grad = scorenet.apply({'params' : best_params}, x_mod, labels)
+            grad = scorenet.apply_fn({'params' : scorenet.params}, x_mod, labels)
             noise = jax.random.normal(rng, shape=x_mod.shape)
             x_mod = x_mod + step_size * grad + noise * jax.numpy.sqrt(step_size * 2)
             images.append(x_mod[0].squeeze())
@@ -659,7 +664,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, best_params, sigmas, rng, n_steps_
     # add a final denoising step is desired
     if denoise:
         last_noise = (len(sigmas) - 1) * jax.numpy.ones(x_mod.shape[0], dtype=np.int8)
-        last_grad = scorenet.apply({'params' : best_params}, x_mod, last_noise)
+        last_grad = scorenet.apply_fn({'params' : scorenet.params}, x_mod, last_noise)
         x_mod = x_mod + sigmas[-1] ** 2 * last_grad
         images.append(x_mod[0].squeeze())
         scores.append(last_grad[0].squeeze())
@@ -682,14 +687,15 @@ gaussian_noise = jax.random.normal(key_seq, shape=data_shape.shape) # Initial no
 # load best model 
 # TODO: possibly implement a way to load the model itself instead of model.apply()
 scorenet = model # nicer name for the model
-print(f'params initial: {best_params}')
-best_params = np.load(param_path, allow_pickle=True) # load the best params
-best_params = jnp.array(best_params)
-print(f'params after load {best_params}')
+if not train:
+    state = train_state.TrainState.create(  apply_fn=model.apply,
+                                            params=params,
+                                            tx=optimizer )
+    
+best_state  = checkpoints.restore_checkpoint(ckpt_dir=CKPT_DIR, target=state)
 # run the Langevin sampler
 images, scores = anneal_Langevin_dynamics(  gaussian_noise, 
-                                            scorenet, 
-                                            best_params,
+                                            best_state, 
                                             sigmas, 
                                             key_seq,
                                             n_steps_each=sample_steps, 

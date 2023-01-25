@@ -614,7 +614,7 @@ if train:
       best_params = params
       best_loss   = loss_vector[i]
       param_path = CKPT_DIR + '/scorenet_params.npy'
-      np.save(param_path, best_params)
+      np.save(param_path, best_params, allow_pickle=True)
     epoch_loss = 0
     
     # plots and printing outputs
@@ -683,6 +683,7 @@ gaussian_noise = jax.random.normal(key_seq, shape=data_shape.shape) # Initial no
 # TODO: possibly implement a way to load the model itself instead of model.apply()
 scorenet = model # nicer name for the model
 best_params = np.load(param_path, allow_pickle=True) # load the best params
+best_params = jnp.array(best_params)
 # run the Langevin sampler
 images, scores = anneal_Langevin_dynamics(  gaussian_noise, 
                                             scorenet, 

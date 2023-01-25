@@ -696,6 +696,7 @@ scorenet = model # nicer name for the model
 with open(filename, 'rb') as handle:
     best_params_new = pickle.load(handle)
 
+print('testing pickle loading scheme')
 print(best_params == best_params_new)
 
 empty_state = train_state.TrainState.create(apply_fn=model.apply,

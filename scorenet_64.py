@@ -579,9 +579,9 @@ loss_fn = anneal_dsm_score_estimation
 
 # training settings
 CKPT_DIR    = 'ckpts_64'
-train       = True
+train       = False #True
 plot_scores = False
-plot_loss   = True
+plot_loss   = False #True
 verbose     = False
 best_loss   = 1e15
 epoch_loss  = 0
@@ -685,6 +685,11 @@ gaussian_noise = jax.random.normal(key_seq, shape=data_shape.shape) # Initial no
 
 # load best model 
 # TODO: possibly implement a way to load the model itself instead of model.apply()
+if not train:
+    state = train_state.TrainState.create(  apply_fn=model.apply,
+                                            params=params,
+                                            tx=optimizer )
+
 best_state  = checkpoints.restore_checkpoint(ckpt_dir=CKPT_DIR, target=state)
 
 # run the Langevin sampler

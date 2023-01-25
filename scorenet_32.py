@@ -19,14 +19,14 @@
 #    - addition of various visualisation routines                                #
 # ------------------------------------------------------------------------------ #
 
-
+import os
+import pickle
 import functools
 import math
 import string
 from typing import Any, Sequence, Optional
 import flax
 import flax.linen as nn
-from flax.training import train_state, checkpoints
 import optax
 import jax
 import jax.nn as jnn
@@ -561,6 +561,9 @@ loss_fn = anneal_dsm_score_estimation
 
 # training settings
 CKPT_DIR    = 'ckpts_32'
+if not os.path.exists(CKPT_DIR):
+    os.makedirs(CKPT_DIR)
+filename = CKPT_DIR + '/scorenet_32_state.pickle'
 train       = True
 plot_scores = False
 plot_loss   = True
@@ -596,11 +599,8 @@ if train:
       best_params = params
       best_loss   = loss_vector[i]
       # testing saving training state
-      state = train_state.TrainState.create(  apply_fn=model.apply,
-                                              params=best_params,
-                                              tx=optimizer )
-      checkpoints.save_checkpoint(ckpt_dir=CKPT_DIR, target=state, step=i, 
-                                  prefix='scorenet_state_', overwrite=True)  
+      with open(filename, 'wb') as handle:
+            pickle.dump(best_params, handle)  
     epoch_loss = 0
     
     # plots and printing outputs
@@ -624,7 +624,7 @@ if (plot_loss==True) and (train==True):
 # ------------------------- #
 # langevin dynamic sampling #
 # ------------------------- #
-def anneal_Langevin_dynamics(x_mod, scorenet, sigmas, rng, n_steps_each=100, 
+def anneal_Langevin_dynamics(x_mod, scorenet, best_params, sigmas, rng, n_steps_each=100, 
                                 step_lr=0.000008,denoise=True):
     # initialise arrays for images and scores
     images = []
@@ -636,7 +636,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, sigmas, rng, n_steps_each=100,
         step_size = step_lr * (sigma / sigmas[-1]) ** 2
         desc = 'sampling at noise level: ' + str(c + 1) + ' / ' + str(len(sigmas))
         for s in tqdm(range(n_steps_each),desc=desc):
-            grad = scorenet.apply_fn({'params' : scorenet.params}, x_mod, labels)
+            grad = scorenet.apply({'params' : best_params}, x_mod, labels)
             noise = jax.random.normal(rng, shape=x_mod.shape)
             x_mod = x_mod + step_size * grad + noise * jax.numpy.sqrt(step_size * 2)
             images.append(x_mod[0].squeeze())
@@ -645,7 +645,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, sigmas, rng, n_steps_each=100,
     # add a final denoising step is desired
     if denoise:
         last_noise = (len(sigmas) - 1) * jax.numpy.ones(x_mod.shape[0], dtype=np.int8)
-        last_grad = scorenet.apply_fn({'params' : scorenet.params}, x_mod, last_noise)
+        last_grad = scorenet.apply({'params' : best_params}, x_mod, last_noise)
         x_mod = x_mod + sigmas[-1] ** 2 * last_grad
         images.append(x_mod[0].squeeze())
         scores.append(last_grad[0].squeeze())
@@ -666,17 +666,16 @@ data_shape     = data_jax[shape_array]           # get the data shape for starti
 gaussian_noise = jax.random.normal(key_seq, shape=data_shape.shape) # Initial noise image/data
 
 # load best model 
-# TODO: possibly implement a way to load the model itself instead of model.apply()
-if not train:
-    state = train_state.TrainState.create(  apply_fn=model.apply,
-                                            params=params,
-                                            tx=optimizer )
+# TODO: clean this up and comment
+scorenet = model # nicer name for the model
+# load the weights and biases with pickle
+with open(filename, 'rb') as handle:
+    best_params_new = pickle.load(handle)
     
-best_state  = checkpoints.restore_checkpoint(ckpt_dir=CKPT_DIR, target=state)
-
 # run the Langevin sampler
 images, scores = anneal_Langevin_dynamics(  gaussian_noise, 
-                                            best_state, 
+                                            scorenet,
+                                            best_params, 
                                             sigmas, 
                                             key_seq,
                                             n_steps_each=sample_steps, 

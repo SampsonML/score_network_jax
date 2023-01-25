@@ -580,7 +580,7 @@ loss_fn = anneal_dsm_score_estimation
 CKPT_DIR    = 'ckpts_64'
 if not os.path.exists(CKPT_DIR):
     os.makedirs(CKPT_DIR)
-filename = CKPT_DIR + '/scorenet_state.pickle'
+filename = CKPT_DIR + '/scorenet_64_state.pickle'
 train       = True #True
 plot_scores = False
 plot_loss   = False #True

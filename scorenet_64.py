@@ -351,7 +351,6 @@ class NCSNv2(nn.Module):
     sigmas        = jnp.exp(jnp.linspace(jnp.log(sigma_end), 
                               jnp.log(sigma_begin),num_scales))
     sigmas = jax.numpy.flip(sigmas)
-    im_size       = 64                    # image size
     nf            = 128                   # number of filters
     act           = nn.elu                # activation function
     normalizer    = InstanceNorm2dPlus    # normalization function

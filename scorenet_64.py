@@ -685,14 +685,16 @@ data_shape     = data_jax[shape_array]           # get the data shape for starti
 gaussian_noise = jax.random.normal(key_seq, shape=data_shape.shape) # Initial noise image/data
 
 # load best model 
-# TODO: possibly implement a way to load the model itself instead of model.apply()
+# TODO: clean this up ad comment
 scorenet = model # nicer name for the model
-if not train:
-    state = train_state.TrainState.create(  apply_fn=model.apply,
+empty_state = train_state.TrainState.create(apply_fn=model.apply,
                                             params=params,
-                                            tx=optimizer )
-    
-best_state  = checkpoints.restore_checkpoint(ckpt_dir=CKPT_DIR, target=state)
+                                            tx=optimizer)
+empty_config = {'dimensions': np.array([0, 0]), 'name': ''}
+target = {'model': empty_state, 'config': empty_config,
+            'data': [jnp.zeros_like(gaussian_noise)]}
+best_state  = checkpoints.restore_checkpoint(ckpt_dir=CKPT_DIR, target=target)
+
 # run the Langevin sampler
 images, scores = anneal_Langevin_dynamics(  gaussian_noise, 
                                             best_state, 

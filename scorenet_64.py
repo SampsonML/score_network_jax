@@ -20,6 +20,7 @@
 # ------------------------------------------------------------------------------ #
 
 import os
+import pickle
 import functools
 import math
 import string
@@ -580,6 +581,7 @@ loss_fn = anneal_dsm_score_estimation
 CKPT_DIR    = 'ckpts_64'
 if not os.path.exists(CKPT_DIR):
     os.makedirs(CKPT_DIR)
+filename = CKPT_DIR + '/scorenet_state.pickle'
 train       = True #True
 plot_scores = False
 plot_loss   = False #True
@@ -615,6 +617,9 @@ if train:
       best_params = params
       best_loss   = loss_vector[i]
       # testing saving training state
+      with open(filename, 'wb') as handle:
+        pickle.dump(best_params, handle)
+        
       state = train_state.TrainState.create(  apply_fn=model.apply,
                                               params=best_params,
                                               tx=optimizer )
@@ -687,13 +692,16 @@ gaussian_noise = jax.random.normal(key_seq, shape=data_shape.shape) # Initial no
 # load best model 
 # TODO: clean this up ad comment
 scorenet = model # nicer name for the model
+# load the weights and biases with pickle
+with open(filename, 'rb') as handle:
+    best_params_new = pickle.load(handle)
+
+print(best_params == best_params_new)
+
 empty_state = train_state.TrainState.create(apply_fn=model.apply,
                                             params=params,
                                             tx=optimizer)
-empty_config = {'dimensions': np.array([0, 0]), 'name': ''}
-target = {'model': empty_state, 'config': empty_config,
-            'data': [jnp.zeros_like(gaussian_noise)]}
-best_state  = checkpoints.restore_checkpoint(ckpt_dir=CKPT_DIR, target=target)
+best_state  = checkpoints.restore_checkpoint(ckpt_dir=CKPT_DIR, target=empty_state)
 
 # run the Langevin sampler
 images, scores = anneal_Langevin_dynamics(  gaussian_noise, 

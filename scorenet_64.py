@@ -628,7 +628,7 @@ if train:
   print(f'final loss: {loss_vector[-1]}')
 
 
-if plot_loss:
+if (plot_loss==True) and (train==True):
   fig , ax = plt.subplots(1,1,figsize=(12, 8), facecolor='white',dpi = 70)
   steps = range(0,n_epochs)
   plt.plot(steps,loss_vector, alpha = 0.80, zorder=0)

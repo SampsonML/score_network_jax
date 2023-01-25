@@ -528,7 +528,7 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq     = jax.random.PRNGKey(42)                # random seed
-n_epochs    = 15                                    # number of epochs
+n_epochs    = 75                                    # number of epochs
 batch_size  = 1                                    # batch size
 lr          = 1e-4                                  # learning rate
 im_size     = 64                                    # image size
@@ -648,7 +648,7 @@ if (plot_loss==True) and (train==True):
 # ------------------------- #
 # langevin dynamic sampling #
 # ------------------------- #
-def anneal_Langevin_dynamics(x_mod, scorenet, sigmas, rng, n_steps_each=100, 
+def anneal_Langevin_dynamics(x_mod, scorenet, best_params, sigmas, rng, n_steps_each=100, 
                                 step_lr=0.000008,denoise=True):
     # initialise arrays for images and scores
     images = []
@@ -660,7 +660,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, sigmas, rng, n_steps_each=100,
         step_size = step_lr * (sigma / sigmas[-1]) ** 2
         desc = 'sampling at noise level: ' + str(c + 1) + ' / ' + str(len(sigmas))
         for s in tqdm(range(n_steps_each),desc=desc):
-            grad = scorenet.apply_fn({'params' : scorenet.params}, x_mod, labels)
+            grad = scorenet.apply({'params' : best_params}, x_mod, labels)
             noise = jax.random.normal(rng, shape=x_mod.shape)
             x_mod = x_mod + step_size * grad + noise * jax.numpy.sqrt(step_size * 2)
             images.append(x_mod[0].squeeze())
@@ -669,7 +669,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, sigmas, rng, n_steps_each=100,
     # add a final denoising step is desired
     if denoise:
         last_noise = (len(sigmas) - 1) * jax.numpy.ones(x_mod.shape[0], dtype=np.int8)
-        last_grad = scorenet.apply_fn({'params' : scorenet.params}, x_mod, last_noise)
+        last_grad = scorenet.apply({'params' : best_params}, x_mod, last_noise)
         x_mod = x_mod + sigmas[-1] ** 2 * last_grad
         images.append(x_mod[0].squeeze())
         scores.append(last_grad[0].squeeze())
@@ -696,16 +696,10 @@ scorenet = model # nicer name for the model
 with open(filename, 'rb') as handle:
     best_params_new = pickle.load(handle)
     
-print(best_params_new)
-
-empty_state = train_state.TrainState.create(apply_fn=model.apply,
-                                            params=params,
-                                            tx=optimizer)
-best_state  = checkpoints.restore_checkpoint(ckpt_dir=CKPT_DIR, target=empty_state)
-
 # run the Langevin sampler
 images, scores = anneal_Langevin_dynamics(  gaussian_noise, 
-                                            best_state, 
+                                            scorenet,
+                                            best_params, 
                                             sigmas, 
                                             key_seq,
                                             n_steps_each=sample_steps, 

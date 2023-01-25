@@ -526,7 +526,7 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq     = jax.random.PRNGKey(42)                # random seed
-n_epochs    = 75                                    # number of epochs
+n_epochs    = 15                                    # number of epochs
 batch_size  = 1                                    # batch size
 lr          = 1e-4                                  # learning rate
 im_size     = 64                                    # image size
@@ -682,8 +682,10 @@ gaussian_noise = jax.random.normal(key_seq, shape=data_shape.shape) # Initial no
 # load best model 
 # TODO: possibly implement a way to load the model itself instead of model.apply()
 scorenet = model # nicer name for the model
+print(f'params initial: {best_params}')
 best_params = np.load(param_path, allow_pickle=True) # load the best params
 best_params = jnp.array(best_params)
+print(f'params after load {best_params}')
 # run the Langevin sampler
 images, scores = anneal_Langevin_dynamics(  gaussian_noise, 
                                             scorenet, 

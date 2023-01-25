@@ -668,6 +668,11 @@ gaussian_noise = jax.random.normal(key_seq, shape=data_shape.shape) # Initial no
 
 # load best model 
 # TODO: possibly implement a way to load the model itself instead of model.apply()
+if not train:
+    state = train_state.TrainState.create(  apply_fn=model.apply,
+                                            params=params,
+                                            tx=optimizer )
+    
 best_state  = checkpoints.restore_checkpoint(ckpt_dir=CKPT_DIR, target=state)
 
 # run the Langevin sampler

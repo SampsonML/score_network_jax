@@ -613,7 +613,7 @@ if train:
       best_params = params
       best_loss   = loss_vector[i]
       param_path = CKPT_DIR + '/scorenet_params.npy'
-      np.save(param_path)
+      np.save(param_path, best_params)
     epoch_loss = 0
     
     # plots and printing outputs

@@ -25,7 +25,6 @@ import functools
 import math
 import string
 from typing import Any, Sequence, Optional
-from flax.training import train_state, checkpoints
 import flax
 import flax.linen as nn
 import optax
@@ -350,7 +349,7 @@ class NCSNv2(nn.Module):
     sigma_end     = 1e-2                  # noise scale min
     num_scales    = 10                     # number of noise scales
     sigmas        = jnp.exp(jnp.linspace(jnp.log(sigma_end), 
-                              jnp.log(sigma_begin),num_scales))
+                                jnp.log(sigma_begin),num_scales))
     sigmas = jax.numpy.flip(sigmas)
     nf            = 128                   # number of filters
     act           = nn.elu                # activation function
@@ -360,9 +359,9 @@ class NCSNv2(nn.Module):
     
     # data already centered
     if not data_centered:
-      h = 2 * x - 1.
+        h = 2 * x - 1.
     else:
-      h = x
+        h = x
     
     # Begin the U-Net
     h = conv3x3(h, nf, stride=1, bias=True)
@@ -374,37 +373,37 @@ class NCSNv2(nn.Module):
     layer1 = ResidualBlock(nf, resample=None, act=act, normalization=normalizer)(h)
     h = ResidualBlock(2 * nf, resample='down', act=act, normalization=normalizer)(layer1)
     layer2 = ResidualBlock(2 * nf, resample=None, act=act, normalization=normalizer)(h)
-    h = ResidualBlock(2 * nf,
-                      resample='down',
-                      act=act,
-                      normalization=normalizer,
-                      dilation=2)(layer2)
+    h = ResidualBlock(  2 * nf,
+                        resample='down',
+                        act=act,
+                        normalization=normalizer,
+                        dilation=2)(layer2)
     layer3 = ResidualBlock(2 * nf, resample=None, act=act, normalization=normalizer, dilation=2)(h)
-    h = ResidualBlock(2 * nf,
-                      resample='down',
-                      act=act,
-                      normalization=normalizer,
-                      dilation=4)(layer3)
+    h = ResidualBlock(  2 * nf,
+                        resample='down',
+                        act=act,
+                        normalization=normalizer,
+                        dilation=4)(layer3)
     layer4 = ResidualBlock(2 * nf, resample=None, act=act, normalization=normalizer, dilation=4)(h)
     # U-Net with RefineBlocks
-    ref1 = RefineBlock(layer4.shape[1:3],
-                       2 * nf,
-                      act=act,
-                      interpolation=interpolation,
-                      start=True)([layer4])
-    ref2 = RefineBlock(layer3.shape[1:3],
-                       2 * nf,
-                      interpolation=interpolation,
-                      act=act)([layer3, ref1])
-    ref3 = RefineBlock(layer2.shape[1:3],
-                       2 * nf,
-                      interpolation=interpolation,
-                      act=act)([layer2, ref2])
-    ref4 = RefineBlock(layer1.shape[1:3],
-                      nf,
-                      interpolation=interpolation,
-                      act=act,
-                      end=True)([layer1, ref3])
+    ref1 = RefineBlock( layer4.shape[1:3],
+                         2 * nf,
+                        act=act,
+                        interpolation=interpolation,
+                        start=True)([layer4])
+    ref2 = RefineBlock(  layer3.shape[1:3],
+                        2 * nf,
+                        interpolation=interpolation,
+                        act=act)([layer3, ref1])
+    ref3 = RefineBlock( layer2.shape[1:3],
+                         2 * nf,
+                        interpolation=interpolation,
+                        act=act)([layer2, ref2])
+    ref4 = RefineBlock( layer1.shape[1:3],
+                        nf,
+                        interpolation=interpolation,
+                        act=act,
+                        end=True)([layer1, ref3])
 
     h = normalizer()(ref4)
     h = act(h)
@@ -477,7 +476,7 @@ for i in range(len(dataset)):
 # add a loop to add 51 and 61 data together
 for i in range(len(dataset_51)):
     data_padded_61.append( dataset_51[i] )
-  
+
 dataset = np.array( data_padded_61 )
 
 # convert dataset to jax array
@@ -592,58 +591,52 @@ epoch_loss  = 0
 # TODO: make updates to store and save the model state opposed to the model params
 # begin training loop storing params
 if train:
-  loss_vector = np.zeros(n_epochs)
-  for i in tqdm(range(n_epochs), desc='training model'):
-    for batch_idx in range(batch_per_epoch):
-      
-      # set up batch and noise samples
-      batch_length = jnp.array(range(batch_idx*batch_size, (batch_idx+1)*batch_size))
-      samples = data_jax[batch_length]
-      labels = jax.random.randint(key_seq, (len(samples),), 
+    loss_vector = np.zeros(n_epochs)
+    for i in tqdm(range(n_epochs), desc='training model'):
+        for batch_idx in range(batch_per_epoch):
+
+            # set up batch and noise samples
+            batch_length = jnp.array(range(batch_idx*batch_size, (batch_idx+1)*batch_size))
+            samples = data_jax[batch_length]
+            labels = jax.random.randint(key_seq, (len(samples),), 
                             minval=0, maxval=len(sigmas), dtype=jnp.int32)
-      
-      # calculate gradients and loss
-      loss, grads = jax.value_and_grad(loss_fn)(params, model, samples, labels, sigmas, key_seq)
-      epoch_loss += loss
-      
-      # update the model params
-      updates, model_state = optimizer.update(grads, model_state)
-      params = optax.apply_updates(params, updates)
-      
-    # store epoch loss and make plots
-    epoch_loss = epoch_loss / (batch_per_epoch * batch_size)
-    loss_vector[i] = epoch_loss
-    if loss_vector[i] < best_loss:
-      best_params = params
-      best_loss   = loss_vector[i]
-      # testing saving training state
-      with open(filename, 'wb') as handle:
-        pickle.dump(best_params, handle)
-        
-      state = train_state.TrainState.create(  apply_fn=model.apply,
-                                              params=best_params,
-                                              tx=optimizer )
-      checkpoints.save_checkpoint(ckpt_dir=CKPT_DIR, target=state, step=i, 
-                                  prefix='scorenet_state_', overwrite=True)
-    epoch_loss = 0
+
+            # calculate gradients and loss
+            loss, grads = jax.value_and_grad(loss_fn)(params, model, samples, labels, sigmas, key_seq)
+            epoch_loss += loss
+
+            # update the model params
+            updates, model_state = optimizer.update(grads, model_state)
+            params = optax.apply_updates(params, updates)
+
+        # store epoch loss and make plots
+        epoch_loss = epoch_loss / (batch_per_epoch * batch_size)
+        loss_vector[i] = epoch_loss
+        if loss_vector[i] < best_loss:
+            best_params = params
+            best_loss   = loss_vector[i]
+            # testing saving training state
+            with open(filename, 'wb') as handle:
+                pickle.dump(best_params, handle)
+        epoch_loss = 0
     
     # plots and printing outputs
     if (plot_scores): plot_evolve(params, samples, i, labels)
     if ( (i > 0) and (verbose==True) ): 
-      print(f'loss at step {i}: {loss_vector[i]} loss at prev step {loss_vector[i-1]}')
-  print(f'initial loss: {loss_vector[0]}')
-  print(f'final loss: {loss_vector[-1]}')
+        print(f'loss at step {i}: {loss_vector[i]} loss at prev step {loss_vector[i-1]}')
+    print(f'initial loss: {loss_vector[0]}')
+    print(f'final loss: {loss_vector[-1]}')
 
 
 if (plot_loss==True) and (train==True):
-  fig , ax = plt.subplots(1,1,figsize=(12, 8), facecolor='white',dpi = 70)
-  steps = range(0,n_epochs)
-  plt.plot(steps,loss_vector, alpha = 0.80, zorder=0)
-  #plt.scatter(steps,loss_vector, s=20, zorder=1)
-  plt.xlabel('training epochs', fontsize = 30)
-  plt.ylabel('cross-entropy loss (arb)', fontsize = 30)
-  plt.tight_layout()
-  plt.savefig('loss_evolution_res64.png',facecolor='white',dpi=300)  
+    fig , ax = plt.subplots(1,1,figsize=(12, 8), facecolor='white',dpi = 70)
+    steps = range(0,n_epochs)
+    plt.plot(steps,loss_vector, alpha = 0.80, zorder=0)
+    #plt.scatter(steps,loss_vector, s=20, zorder=1)
+    plt.xlabel('training epochs', fontsize = 30)
+    plt.ylabel('cross-entropy loss (arb)', fontsize = 30)
+    plt.tight_layout()
+    plt.savefig('loss_evolution_res64.png',facecolor='white',dpi=300)  
 
 # ------------------------- #
 # langevin dynamic sampling #
@@ -690,7 +683,7 @@ data_shape     = data_jax[shape_array]           # get the data shape for starti
 gaussian_noise = jax.random.normal(key_seq, shape=data_shape.shape) # Initial noise image/data
 
 # load best model 
-# TODO: clean this up ad comment
+# TODO: clean this up and comment
 scorenet = model # nicer name for the model
 # load the weights and biases with pickle
 with open(filename, 'rb') as handle:

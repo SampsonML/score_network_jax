@@ -19,14 +19,13 @@
 #    - addition of various visualisation routines                                #
 # ------------------------------------------------------------------------------ #
 
-
+import os
 import functools
 import math
 import string
 from typing import Any, Sequence, Optional
 import flax
 import flax.linen as nn
-#from flax.training import train_state, checkpoints
 import optax
 import jax
 import jax.nn as jnn
@@ -578,6 +577,8 @@ loss_fn = anneal_dsm_score_estimation
 
 # training settings
 CKPT_DIR    = 'ckpts_64'
+if not os.path.exists(CKPT_DIR):
+    os.makedirs(CKPT_DIR)
 train       = True #True
 plot_scores = False
 plot_loss   = False #True

@@ -269,7 +269,7 @@ if train:
         epoch_loss = 0
     
     # plots and printing outputs
-    if (plot_scores): plot_evolve(params, samples, i, labels)
+    #if (plot_scores): plot_evolve(params, samples, i, labels)
     if ( (i > 0) and (verbose==True) ): 
         print(f'loss at step {i}: {loss_vector[i]} loss at prev step {loss_vector[i-1]}')
     print(f'initial loss: {loss_vector[0]}')

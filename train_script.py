@@ -43,6 +43,16 @@ from model import ScoreNet
 # test we can find correct device
 from jax.lib import xla_bridge
 print(f'Device used is: {xla_bridge.get_backend().platform}')
+import argparse
+
+# parse in the image size to train on from the command line
+# Parse arguements
+parser = argparse.ArgumentParser(
+    description="training script")
+parser.add_argument("-s", "--size",
+                    help="size of image to train on",
+                    default="32", type=int)
+args    = parser.parse_args()
 
 # ---------------------------------------------------------- #
 # The loss function for a noise dependent score model        #
@@ -173,15 +183,15 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq     = jax.random.PRNGKey(42)               # random seed
-n_epochs    = 20                                   # number of epochs
+n_epochs    = 75                                   # number of epochs
 batch_size  = 1                                    # batch size
 lr          = 1e-4                                 # learning rate
-im_size     = 64                                   # image size
+im_size     = args.size                            # image size
 training_data = createData(im_size)                # create the training data
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-len_train = 30000
+len_train = 1 #30000
 training_data = training_data[0:len_train] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = training_data[batch]

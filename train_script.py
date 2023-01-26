@@ -68,7 +68,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     noise = jax.random.normal(key, samples.shape)
     perturbed_samples = samples + noise * used_sigmas
     target = -noise / used_sigmas**2
-    scores = jax.jit( model.apply({'params': params}, perturbed_samples, labels) )
+    scores = model.apply({'params': params}, perturbed_samples, labels) 
     loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * used_sigmas**2 
     loss = jnp.mean(loss)
     return loss
@@ -155,11 +155,11 @@ def plot_evolve(params,sample,step, labels):
 # ------------------- #
 
 # model training and init params
-key_seq     = jax.random.PRNGKey(42)                # random seed
-n_epochs    = 60                                    # number of epochs
+key_seq     = jax.random.PRNGKey(42)               # random seed
+n_epochs    = 60                                   # number of epochs
 batch_size  = 1                                    # batch size
-lr          = 1e-4                                  # learning rate
-im_size     = 64                                    # image size
+lr          = 1e-4                                 # learning rate
+im_size     = 64                                   # image size
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
@@ -207,7 +207,7 @@ model_state = optimizer.init(params)
 loss_fn = anneal_dsm_score_estimation
 
 # training settings
-CKPT_DIR    = 'ckpts_test_64'
+CKPT_DIR    = 'saved_params_' + str(im_size)
 if not os.path.exists(CKPT_DIR):
     os.makedirs(CKPT_DIR)
 filename = CKPT_DIR + '/scorenet_64_state.pickle'

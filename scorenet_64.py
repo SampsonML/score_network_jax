@@ -692,7 +692,7 @@ gaussian_noise = jax.random.normal(key_seq, shape=data_shape.shape) # Initial no
 scorenet = model # nicer name for the model
 # load the weights and biases with pickle
 with open(filename, 'rb') as handle:
-    best_params_new = pickle.load(handle)
+    best_params = pickle.load(handle)
     
 # run the Langevin sampler
 images, scores = anneal_Langevin_dynamics(  gaussian_noise, 

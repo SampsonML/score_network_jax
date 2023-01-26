@@ -535,6 +535,11 @@ im_size     = 64                                    # image size
 # construct the training data 
 # for testing limit size until GPU HPC is available
 data_jax = data_jax[0:1] # DELETE for full training
+print()
+print('--------------------------------')
+print(f'training on {len(data_jax)} images')
+print('--------------------------------')
+print()
 batch = jnp.array(range(0, batch_size))
 training_data_init = data_jax[batch]
 batch_per_epoch = len(data_jax) // batch_size

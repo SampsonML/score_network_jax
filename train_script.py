@@ -240,12 +240,10 @@ def mini_loop(params, model, batch_idx, batch_size, labels, sigmas, key_seq):
 
     # calculate gradients and loss
     loss, grads = jax.value_and_grad(loss_fn)(params, model, samples, labels, sigmas, key_seq)
-    epoch_loss += loss
-
     # update the model params
     updates, model_state = optimizer.update(grads, model_state)
     params = optax.apply_updates(params, updates)
-    return params, epoch_loss
+    return params, loss
 
 #mini_loop = jax.jit(mini_loop)
 
@@ -257,6 +255,7 @@ if train:
             params, loss = mini_loop(   params, model, batch_idx, 
                                         batch_size, labels, 
                                         sigmas, key_seq)
+            epoch_loss += loss
         # store epoch loss and make plots
         epoch_loss = epoch_loss / (batch_per_epoch * batch_size)
         loss_vector[i] = epoch_loss

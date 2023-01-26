@@ -535,11 +535,6 @@ im_size     = 64                                    # image size
 # construct the training data 
 # for testing limit size until GPU HPC is available
 data_jax = data_jax[0:1] # DELETE for full training
-print()
-print('--------------------------------')
-print(f'training on {len(data_jax)} images')
-print('--------------------------------')
-print()
 batch = jnp.array(range(0, batch_size))
 training_data_init = data_jax[batch]
 batch_per_epoch = len(data_jax) // batch_size
@@ -593,8 +588,19 @@ verbose     = False
 best_loss   = 1e15
 epoch_loss  = 0
 
-# TODO: make updates to store and save the model state opposed to the model params
-# begin training loop storing params
+# print message with training details
+print()
+print('----------------------------------')
+print(f'training on {len(data_jax)} images')
+print('----------------------------------')
+print()
+print(f'number of noise scales: {num_scales}')
+print(f'number of epochs: {n_epochs}')
+print(f'batch size: {batch_size}')
+print('----------------------------------')
+print()
+
+# training loop
 if train:
     loss_vector = np.zeros(n_epochs)
     for i in tqdm(range(n_epochs), desc='training model'):

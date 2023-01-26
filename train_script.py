@@ -221,12 +221,13 @@ epoch_loss  = 0
 # print message with training details
 print()
 print('----------------------------')
-print(f'  training on {len(data_jax)} images')
+print(f'   training on {len(data_jax)} images')
 print('----------------------------')
 print('      training settings')
-print(f'  number of noise scales: {num_scales}')
-print(f'    number of epochs: {n_epochs}')
-print(f'      batch size: {batch_size}')
+print(f' number of noise scales: {num_scales}')
+print(f' number of epochs: {n_epochs}')
+print(f' batch size: {batch_size}')
+print(f' image size: {im_size}')
 print('----------------------------')
 print()
 
@@ -245,7 +246,7 @@ def mini_loop(params, model, batch_idx, batch_size, model_state, labels, sigmas,
     params = optax.apply_updates(params, updates)
     return params, loss
 
-#mini_loop = jax.jit(mini_loop)
+mini_loop = jax.jit(mini_loop)
 
 # training loop
 if train:
@@ -254,7 +255,7 @@ if train:
         for batch_idx in range(batch_per_epoch):
             params, loss = mini_loop(   params, model, batch_idx, 
                                         batch_size, model_state, labels, 
-                                        sigmas, key_seq)
+                                        sigmas, key_seq   )
             epoch_loss += loss
         # store epoch loss and make plots
         epoch_loss = epoch_loss / (batch_per_epoch * batch_size)

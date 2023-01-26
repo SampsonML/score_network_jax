@@ -79,38 +79,55 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
 # for testing before moving to the full scale on GPU HPC.      #
 # ------------------------------------------------------------ #
 
-box_size = 51
-dataname = 'sources_box' + str(box_size) + '.npy'     
-dataset = np.load(dataname)
+def createData(im_size):
+    """
+    Create the data set for training
+    -------------------------------------------
+    Inputs: box_size - the size of the box to create
+    Output: dataset  - the data set
+    -------------------------------------------
+    """
+    # create the data set
+    if im_size == 32:
+        box_size = 31
+        dataname = 'sources_box' + str(box_size) + '.npy'     
+        dataset = np.load(dataname)
+        # perform zero-padding of the data to get desired dimensions
+        data_padded_31 = []
+        for i in range(len(dataset)):
+            data_padded_tmp = np.pad(dataset[i], ((0,1),(0,1)), 'constant')
+            data_padded_31.append(data_padded_tmp)
+        dataset = np.array( data_padded_31 )
+        
+    elif im_size == 64:
+        box_size = 51
+        dataname = 'sources_box' + str(box_size) + '.npy'     
+        dataset = np.load(dataname)
+        # perform zero-padding of the data to get desired dimensions
+        data_padded_51 = []
+        for i in range(len(dataset)):
+            data_padded_tmp = np.pad(dataset[i], ((6,7),(6,7)), 'constant')
+            data_padded_51.append(data_padded_tmp)
+        dataset_51 = np.array( data_padded_51 )
+        # load in data  high res
+        box_size = 61
+        dataname = 'sources_box' + str(box_size) + '.npy'     
+        dataset = np.load(dataname)
+        # perform zero-padding of the data to get desired dimensions
+        data_padded_61 = []
+        for i in range(len(dataset)):
+            data_padded_tmp = np.pad(dataset[i], ((1,2),(1,2)), 'constant')
+            data_padded_61.append(data_padded_tmp)
+        # add a loop to add 51 and 61 data together
+        for i in range(len(dataset_51)):
+            data_padded_61.append( dataset_51[i] )
+        dataset = np.array( data_padded_61 )
 
-# perform zero-padding of the data to get desired dimensions
-data_padded_51 = []
-for i in range(len(dataset)):
-    data_padded_tmp = np.pad(dataset[i], ((6,7),(6,7)), 'constant')
-    data_padded_51.append(data_padded_tmp)
-dataset_51 = np.array( data_padded_51 )
-
-# load in data  high res
-box_size = 61
-dataname = 'sources_box' + str(box_size) + '.npy'     
-dataset = np.load(dataname)
-
-# perform zero-padding of the data to get desired dimensions
-data_padded_61 = []
-for i in range(len(dataset)):
-    data_padded_tmp = np.pad(dataset[i], ((1,2),(1,2)), 'constant')
-    data_padded_61.append(data_padded_tmp)
-#dataset = np.array( data_padded_61 )
-
-# add a loop to add 51 and 61 data together
-for i in range(len(dataset_51)):
-    data_padded_61.append( dataset_51[i] )
-
-dataset = np.array( data_padded_61 )
-
-# convert dataset to jax array
-dataset = np.expand_dims(dataset, axis=-1)
-data_jax = jnp.array(dataset)
+    # convert dataset to jax array
+    dataset = np.expand_dims(dataset, axis=-1)
+    data_jax = jnp.array(dataset)
+    
+    return data_jax
 
 # ------------------------------ #
 # visualisation for code testing #
@@ -156,17 +173,18 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq     = jax.random.PRNGKey(42)               # random seed
-n_epochs    = 60                                   # number of epochs
+n_epochs    = 20                                   # number of epochs
 batch_size  = 1                                    # batch size
 lr          = 1e-4                                 # learning rate
 im_size     = 64                                   # image size
+training_data = createData(im_size)                # create the training data
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-data_jax = data_jax[0:1] # DELETE for full training
+training_data = training_data[0:20000] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
-training_data_init = data_jax[batch]
-batch_per_epoch = len(data_jax) // batch_size
+training_data_init = training_data[batch]
+batch_per_epoch = len(training_data) // batch_size
 
 # define noise levels and noise params
 sigma_begin = 1
@@ -221,7 +239,7 @@ epoch_loss  = 0
 # print message with training details
 print()
 print('----------------------------')
-print(f'   training on {len(data_jax)} images')
+print(f'   training on {len(training_data)} images')
 print('----------------------------')
 print(f' noise scales: {num_scales}')
 print(f' training epochs: {n_epochs}')
@@ -231,10 +249,10 @@ print('----------------------------')
 print()
 
 # define mini-batch gradient descent function
-def mini_loop(params, model, batch_idx, batch_size, model_state, labels, sigmas, key_seq):
+def mini_loop(training_data, params, model, batch_idx, batch_size, model_state, labels, sigmas, key_seq):
     # set up batch and noise samples
     batch_length = jnp.array(range(batch_idx*batch_size, (batch_idx+1)*batch_size))
-    samples = data_jax[batch_length]
+    samples = training_data[batch_length]
     labels = jax.random.randint(key_seq, (len(samples),), 
                             minval=0, maxval=len(sigmas), dtype=jnp.int32)
 
@@ -252,9 +270,9 @@ if train:
     loss_vector = np.zeros(n_epochs)
     for i in tqdm(range(n_epochs), desc='training model'):
         for batch_idx in range(batch_per_epoch):
-            params, loss = mini_loop(   params, model, batch_idx, 
-                                        batch_size, model_state, labels, 
-                                        sigmas, key_seq   )
+            params, loss = mini_loop(training_data, params, model, 
+                                    batch_idx, batch_size, model_state, 
+                                    labels, sigmas, key_seq)
             epoch_loss += loss
         # store epoch loss and make plots
         epoch_loss = epoch_loss / (batch_per_epoch * batch_size)
@@ -283,7 +301,8 @@ if (plot_loss==True) and (train==True):
     plt.xlabel('training epochs', fontsize = 30)
     plt.ylabel('cross-entropy loss (arb)', fontsize = 30)
     plt.tight_layout()
-    plt.savefig('loss_evolution_res64.png',facecolor='white',dpi=300)  
+    name = 'loss_evolution_res' + str(im_size) + '.png'
+    plt.savefig(name, facecolor='white',dpi=300)  
 
 # ------------------------- #
 # langevin dynamic sampling #
@@ -326,7 +345,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, best_params, sigmas, rng, n_steps_
 n_samples      = 1                               # number of samples to generate
 sample_steps   = 50                              # number of steps to take at each noise level
 shape_array    = jnp.array(range(0, n_samples))  # run Langevin dynamics on n_samples
-data_shape     = data_jax[shape_array]           # get the data shape for starting image
+data_shape     = training_data[shape_array]           # get the data shape for starting image
 gaussian_noise = jax.random.normal(key_seq, shape=data_shape.shape) # Initial noise image/data
 
 # load best model 
@@ -371,6 +390,7 @@ for i in range(n_panels):
         plt.imshow(images_array[-1], cmap=col_map)
         plt.axis('off')
 plt.tight_layout()
-plt.savefig('langevin_sampling_panels_res64.png',facecolor='white',dpi=300)
+name = 'langevin_sampling_panels_res' + str(im_size) + '.png'
+plt.savefig(name,facecolor='white',dpi=300)
 plt.show()
 

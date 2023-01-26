@@ -173,7 +173,7 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq     = jax.random.PRNGKey(42)               # random seed
-n_epochs    = 20                                   # number of epochs
+n_epochs    = 10                                   # number of epochs
 batch_size  = 1                                    # batch size
 lr          = 1e-4                                 # learning rate
 im_size     = 64                                   # image size
@@ -181,7 +181,7 @@ training_data = createData(im_size)                # create the training data
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-len_train = 1
+len_train = 40000
 training_data = training_data[0:len_train] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = training_data[batch]
@@ -239,9 +239,9 @@ epoch_loss  = 0
 
 # print message with training details
 print()
-print('----------------------------')
-print(f'   training on {len(training_data)} images')
-print('----------------------------')
+print('--------------------------------')
+print(f'   training ScoreNet on {len(training_data)} images')
+print('--------------------------------')
 print(f' noise scales: {num_scales}')
 print(f' training epochs: {n_epochs}')
 print(f' batch size: {batch_size}')

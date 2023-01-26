@@ -38,15 +38,11 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
-
 # import the Scorenet architecture
 from model import ScoreNet
-
 # test we can find correct device
 from jax.lib import xla_bridge
-print(f'Device found is: {xla_bridge.get_backend().platform}')
-
-
+print(f'Device used is: {xla_bridge.get_backend().platform}')
 
 # ---------------------------------------------------------- #
 # The loss function for a noise dependent score model        #
@@ -234,28 +230,33 @@ print(f'      batch size: {batch_size}')
 print('----------------------------')
 print()
 
+# define mini-batch gradient descent function
+def mini_loop(params, model, batch_idx, batch_size, labels, sigmas, key_seq):
+    # set up batch and noise samples
+    batch_length = jnp.array(range(batch_idx*batch_size, (batch_idx+1)*batch_size))
+    samples = data_jax[batch_length]
+    labels = jax.random.randint(key_seq, (len(samples),), 
+                            minval=0, maxval=len(sigmas), dtype=jnp.int32)
+
+    # calculate gradients and loss
+    loss, grads = jax.value_and_grad(loss_fn)(params, model, samples, labels, sigmas, key_seq)
+    epoch_loss += loss
+
+    # update the model params
+    updates, model_state = optimizer.update(grads, model_state)
+    params = optax.apply_updates(params, updates)
+    return params, epoch_loss
+
+#mini_loop = jax.jit(mini_loop)
+
 # training loop
 if train:
     loss_vector = np.zeros(n_epochs)
     for i in tqdm(range(n_epochs), desc='training model'):
         for batch_idx in range(batch_per_epoch):
-
-            # Start JIT compilation
-            # set up batch and noise samples
-            batch_length = jnp.array(range(batch_idx*batch_size, (batch_idx+1)*batch_size))
-            samples = data_jax[batch_length]
-            labels = jax.random.randint(key_seq, (len(samples),), 
-                            minval=0, maxval=len(sigmas), dtype=jnp.int32)
-
-            # calculate gradients and loss
-            loss, grads = jax.value_and_grad(loss_fn)(params, model, samples, labels, sigmas, key_seq)
-            epoch_loss += loss
-
-            # update the model params
-            updates, model_state = optimizer.update(grads, model_state)
-            params = optax.apply_updates(params, updates)
-            # End JIT compilation
-
+            params, loss = mini_loop(   params, model, batch_idx, 
+                                        batch_size, labels, 
+                                        sigmas, key_seq)
         # store epoch loss and make plots
         epoch_loss = epoch_loss / (batch_per_epoch * batch_size)
         loss_vector[i] = epoch_loss

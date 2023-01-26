@@ -188,7 +188,6 @@ params_rng, dropout_rng = jax.random.split(key_seq)
 # define and initialise model
 model = ScoreNet()
 # JIT compile the model for faster training
-#model = jax.jit(model)
 variables = model.init({'params': params_rng}, fake_input, fake_label)
 init_model_state, initial_params = variables.pop('params')
 
@@ -224,7 +223,6 @@ print()
 print('----------------------------')
 print(f'   training on {len(data_jax)} images')
 print('----------------------------')
-print('      training settings')
 print(f' noise scales: {num_scales}')
 print(f' training epochs: {n_epochs}')
 print(f' batch size: {batch_size}')
@@ -247,7 +245,7 @@ def mini_loop(params, model, batch_idx, batch_size, model_state, labels, sigmas,
     params = optax.apply_updates(params, updates)
     return params, loss
 
-mini_loop = jax.jit(mini_loop)
+#mini_loop = jax.jit(mini_loop)
 
 # training loop
 if train:

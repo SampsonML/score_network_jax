@@ -181,7 +181,8 @@ training_data = createData(im_size)                # create the training data
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-training_data = training_data[0:20000] # DELETE for full training
+len_train = 1
+training_data = training_data[0:len_train] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = training_data[batch]
 batch_per_epoch = len(training_data) // batch_size

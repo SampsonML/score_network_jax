@@ -39,10 +39,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 
-# test we can find correct device
-from jax.lib import xla_bridge
-print(f'Device found is: {xla_bridge.get_backend().platform}')
-
 
 """Common layers for defining score networks.
 """

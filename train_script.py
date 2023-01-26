@@ -231,7 +231,7 @@ print('----------------------------')
 print()
 
 # define mini-batch gradient descent function
-def mini_loop(params, model, batch_idx, batch_size, labels, sigmas, key_seq):
+def mini_loop(params, model, batch_idx, batch_size, model_state, labels, sigmas, key_seq):
     # set up batch and noise samples
     batch_length = jnp.array(range(batch_idx*batch_size, (batch_idx+1)*batch_size))
     samples = data_jax[batch_length]
@@ -253,7 +253,7 @@ if train:
     for i in tqdm(range(n_epochs), desc='training model'):
         for batch_idx in range(batch_per_epoch):
             params, loss = mini_loop(   params, model, batch_idx, 
-                                        batch_size, labels, 
+                                        batch_size, model_state, labels, 
                                         sigmas, key_seq)
             epoch_loss += loss
         # store epoch loss and make plots

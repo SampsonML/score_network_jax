@@ -6,7 +6,7 @@ score matching model (diffusion model) with a U-NET architecture. The architectu
 is a JAX port from Song+21 NCSN (https://arxiv.org/abs/2006.09011).
 
 This score network is to be used as a galaxy morphology prior in the upcoming 
-SCARLET 2 code (https://pmelchior.net/blog/scarlet2-redesign.html) 2 fast 2 blurry-less. 
+SCARLET 2 details: https://pmelchior.net/blog/scarlet2-redesign.html. Scarlet 2 code here: https://github.com/pmelchior/scarlet2
 
 ## Details:
 The two main scripts are scorenet_32.py and scorenet_64.py which are

@@ -573,10 +573,10 @@ epoch_loss  = 0
 
 # print message with training details
 print()
-print('----------------------------------')
-print(f'training on {len(data_jax)} images')
-print('----------------------------------')
-print()
+print('----------------------------')
+print(f'  training on {len(data_jax)} images')
+print('----------------------------')
+print('      training settings')
 print(f'number of noise scales: {num_scales}')
 print(f'number of epochs: {n_epochs}')
 print(f'batch size: {batch_size}')

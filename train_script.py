@@ -182,16 +182,16 @@ def plot_evolve(params,sample,step, labels):
 # ------------------- #
 
 # model training and init params
-key_seq     = jax.random.PRNGKey(42)               # random seed
-n_epochs    = 75                                   # number of epochs
-batch_size  = 1                                    # batch size
-lr          = 1e-4                                 # learning rate
-im_size     = args.size                            # image size
-training_data = createData(im_size)                # create the training data
+key_seq      = jax.random.PRNGKey(42)               # random seed
+n_epochs     = 25                                   # number of epochs
+batch_size   = 32                                   # batch size
+lr           = 1e-4                                 # learning rate
+im_size      = args.size                            # image size
+training_data = createData(im_size)                 # create the training data
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-len_train = 1 #30000
+len_train = 40000
 training_data = training_data[0:len_train] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = training_data[batch]
@@ -249,14 +249,14 @@ epoch_loss  = 0
 
 # print message with training details
 print()
-print('--------------------------------')
+print('----------------------------------')
 print(f'   training ScoreNet on {len(training_data)} images')
-print('--------------------------------')
-print(f' <> noise scales: {num_scales}')
-print(f' <> training epochs: {n_epochs}')
-print(f' <> batch size: {batch_size}')
-print(f' <> image size: {im_size}')
-print('----------------------------')
+print('----------------------------------')
+print(f'   <>   noise scales: {num_scales}  ')
+print(f'   <>   training epochs: {n_epochs} ')
+print(f'   <>   batch size: {batch_size}    ')
+print(f'   <>   image size: {im_size}       ')
+print('----------------------------------')
 print()
 
 # define mini-batch gradient descent function

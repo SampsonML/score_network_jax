@@ -366,7 +366,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, best_params, sigmas, rng, n_steps_
 # testing sampling #
 # ---------------- #
 n_samples      = 1                               # number of samples to generate
-sample_steps   = 50                              # number of steps to take at each noise level
+sample_steps   = 100                              # number of steps to take at each noise level
 shape_array    = jnp.array(range(0, n_samples))  # run Langevin dynamics on n_samples
 data_shape     = training_data[shape_array]           # get the data shape for starting image
 gaussian_noise = jax.random.normal(key_seq, shape=data_shape.shape) # Initial noise image/data

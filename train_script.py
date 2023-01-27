@@ -100,7 +100,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     target = -( noise / (used_sigmas ** 2) )
     scores = model.apply({'params': params}, perturbed_samples, labels) 
     loss = jnp.square(scores - target)
-    loss = jnp.mean(loss.reshape((loss.shape[0], -1)), axis=-1) * sigmas ** 2
+    loss = jnp.mean(loss.reshape((loss.shape[0], -1)), axis=-1) * used_sigmas ** 2
     #loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * used_sigmas**2 
     loss = jnp.mean(loss)
     return loss

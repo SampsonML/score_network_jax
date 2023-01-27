@@ -75,36 +75,6 @@ args    = parser.parse_args()
 # define batch multiply function
 #def batch_mul(a, b):
 #  return jax.vmap(lambda a, b: a * b)(a, b)
-"""
-new version
-def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
-    
-    Loss function for annealed score estimation
-    -------------------------------------------
-    Inputs: params:  - the model parameters
-            model:   - the score neural network
-            samples: - the samples from the data distribution
-            labels:  - the noise scale labels
-            sigmas:  - the noise scales
-            key:     - the jax random key
-
-    Output: loss - the loss value
-    -------------------------------------------
-    
-    used_sigmas = sigmas[labels].reshape((samples.shape[0], 
-                                          *([1] * len(samples.shape[1:]))))
-    #noise = batch_mul( jax.random.normal(key, samples.shape) , used_sigmas)
-    noise = jax.random.normal(key, samples.shape) * used_sigmas
-    perturbed_samples = samples + noise 
-    #target = -batch_mul(noise, 1. / (used_sigmas ** 2) )
-    target = -noise / (used_sigmas ** 2) 
-    scores = model.apply({'params': params}, perturbed_samples, labels) 
-    loss_diff = jnp.square(scores - target)
-    loss_batch = 0.5 * jnp.sum(loss_diff, axis=-1)
-    loss_batch_noise = loss_batch * used_sigmas ** 2
-    loss = jnp.mean(loss_batch_noise)
-    return loss
-"""
 
 def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     """
@@ -230,15 +200,15 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq       = jax.random.PRNGKey(42)               # random seed
-n_epochs      = 75                                   # number of epochs
-batch_size    = 1 #64                                   # batch size
+n_epochs      = 25                                   # number of epochs
+batch_size    = 32                                   # batch size
 lr            = 1e-4                                 # learning rate
 im_size       = args.size                            # image size
 training_data = createData(im_size)                  # create the training data
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-len_train = 1 #80000
+len_train = 80000
 training_data = training_data[0:len_train] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = training_data[batch]

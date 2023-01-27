@@ -327,11 +327,12 @@ if train:
     loss_vector = np.zeros(n_epochs)
     for i in tqdm(range(n_epochs), desc='training model'):
         for batch_idx in range(batch_per_epoch):
-            #params, loss , model_state = mini_loop(training_data, params, model, 
-            #                        batch_idx, batch_size, model_state, 
-            #                        labels, sigmas, key_seq)
-            #epoch_loss += loss
+            params, loss , model_state = mini_loop(training_data, params, model, 
+                                    batch_idx, batch_size, model_state, 
+                                    labels, sigmas, key_seq)
+            epoch_loss += loss
             # set up batch and noise samples
+            """
             batch_length = jnp.array(range(batch_idx*batch_size, (batch_idx+1)*batch_size))
             samples = training_data[batch_length]
             labels = jax.random.randint(key_seq, (len(samples),), 
@@ -344,7 +345,7 @@ if train:
             # update the model params
             updates, model_state = optimizer.update(grads, model_state)
             params = optax.apply_updates(params, updates)
-            
+            """
         # store epoch loss and make plots
         epoch_loss = epoch_loss / (batch_per_epoch * batch_size)
         loss_vector[i] = epoch_loss

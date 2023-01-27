@@ -54,7 +54,7 @@ print('    `--. \ / __|/ _ \ |  __|/ _ \| . ` | / _ \| __|')
 print('   /\__/ /| (__| (_) || |  |  __/| |\  ||  __/| |_ ')
 print('   \____/  \___|\___/ |_|   \___|\_| \_/ \___| \__|')
 print('   Generating galaxies from noise with deep learning')     
-print('                  <>  Matt Sampson  <>')                                       
+print('                 <>  Matt Sampson  <>')                                       
 
 #print(f'Device used: {xla_bridge.get_backend().platform}')
 
@@ -196,7 +196,7 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq      = jax.random.PRNGKey(42)               # random seed
-n_epochs     = 25                                   # number of epochs
+n_epochs     = 50                                   # number of epochs
 batch_size   = 64                                   # batch size
 lr           = 1e-4                                 # learning rate
 im_size      = args.size                            # image size
@@ -204,7 +204,7 @@ training_data = createData(im_size)                 # create the training data
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-len_train = 80000
+len_train = 500000
 training_data = training_data[0:len_train] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = training_data[batch]
@@ -252,7 +252,7 @@ CKPT_DIR    = 'saved_params_' + str(im_size)
 if not os.path.exists(CKPT_DIR):
     os.makedirs(CKPT_DIR)
 filename = CKPT_DIR + '/scorenet_' + str(im_size) + '_state.pickle'
-train       = True
+train       = False #True
 plot_scores = False
 plot_loss   = True
 verbose     = False

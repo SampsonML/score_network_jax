@@ -259,14 +259,15 @@ best_loss   = 1e15
 epoch_loss  = 0
 
 # print message with training details
-print('----------------------------------------')
-print(f'   training ScoreNet on {len(training_data)} images')
-print('----------------------------------------')
-print(f'      <>   noise scales:    {num_scales}  ')
-print(f'      <>   training epochs: {n_epochs} ')
-print(f'      <>   batch size:      {batch_size}    ')
-print(f'      <>   image size:      {im_size}       ')
-print('----------------------------------------')
+print()
+print('    ----------------------------------------')
+print(f'       training ScoreNet on {len(training_data)} images')
+print('    ----------------------------------------')
+print(f'          <>   noise scales:    {num_scales}  ')
+print(f'          <>   training epochs: {n_epochs} ')
+print(f'          <>   batch size:      {batch_size}    ')
+print(f'          <>   image size:      {im_size}       ')
+print('    ----------------------------------------')
 print()
 
 # define mini-batch gradient descent function

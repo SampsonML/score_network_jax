@@ -204,7 +204,7 @@ training_data = createData(im_size)                 # create the training data
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-len_train = 500000
+len_train = 80000
 training_data = training_data[0:len_train] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = training_data[batch]
@@ -284,7 +284,7 @@ def mini_loop(training_data, params, model, batch_idx, batch_size, model_state, 
     # update the model params
     updates, model_state = optimizer.update(grads, model_state)
     params = optax.apply_updates(params, updates)
-    return params, loss
+    return params, loss, model_state
 
 #mini_loop = jax.jit(mini_loop)
 
@@ -293,7 +293,7 @@ if train:
     loss_vector = np.zeros(n_epochs)
     for i in tqdm(range(n_epochs), desc='training model'):
         for batch_idx in range(batch_per_epoch):
-            params, loss = mini_loop(training_data, params, model, 
+            params, loss , model_state = mini_loop(training_data, params, model, 
                                     batch_idx, batch_size, model_state, 
                                     labels, sigmas, key_seq)
             epoch_loss += loss

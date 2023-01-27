@@ -45,14 +45,16 @@ from jax.lib import xla_bridge
 import argparse
 
 # Scorenet asci art
-print('    _____                         _   _        _   ')
-print('   /  ___|                       | \ | |      | |  ')
-print('   \ `--.   ___  ___   _ __  ___ |  \| |  ___ | |_ ')
-print('    `--. \ / __|/ _ \ |  __|/ _ \| . ` | / _ \| __|')
-print('   /\__/ /| (__| (_) || |  |  __/| |\  ||  __/| |_ ')
-print('   \____/  \___|\___/ |_|   \___|\_| \_/ \___| \__|')
-print('   Generating galaxies from noise with deep learning')     
-print('                <>  Matt Sampson  <>')                                       
+
+
+print('     ███████╗ ██████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗████████╗ ')
+print('     ██╔════╝██╔════╝██╔═══██╗██╔══██╗██╔════╝████╗  ██║██╔════╝╚══██╔══╝ ')
+print('     ███████╗██║     ██║   ██║██████╔╝█████╗  ██╔██╗ ██║█████╗     ██║   ')
+print('     ╚════██║██║     ██║   ██║██╔══██╗██╔══╝  ██║╚██╗██║██╔══╝     ██║  ') 
+print('     ███████║╚██████╗╚██████╔╝██║  ██║███████╗██║ ╚████║███████╗   ██║  ')
+print('     ╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚══════╝   ╚═╝  ') 
+print('              Generating galaxies from noise with deep learning')     
+print('                             <>  Matt Sampson  <>')                                       
 
 #print(f'Device used: {xla_bridge.get_backend().platform}')
 
@@ -202,7 +204,7 @@ training_data = createData(im_size)                 # create the training data
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-len_train = 80000
+len_train = 500000
 training_data = training_data[0:len_train] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = training_data[batch]

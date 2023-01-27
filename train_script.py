@@ -191,7 +191,7 @@ training_data = createData(im_size)                 # create the training data
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-len_train = 40000
+len_train = 80000
 training_data = training_data[0:len_train] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = training_data[batch]
@@ -239,7 +239,7 @@ loss_fn = anneal_dsm_score_estimation
 CKPT_DIR    = 'saved_params_' + str(im_size)
 if not os.path.exists(CKPT_DIR):
     os.makedirs(CKPT_DIR)
-filename = CKPT_DIR + '/scorenet_64_state.pickle'
+filename = CKPT_DIR + '/scorenet_' + str(im_size) + '_state.pickle'
 train       = True #True
 plot_scores = False
 plot_loss   = True
@@ -249,14 +249,14 @@ epoch_loss  = 0
 
 # print message with training details
 print()
-print('-----------------------------------------')
+print('----------------------------------------')
 print(f'   training ScoreNet on {len(training_data)} images')
-print('-----------------------------------------')
+print('----------------------------------------')
 print(f'      <>   noise scales:    {num_scales}  ')
 print(f'      <>   training epochs: {n_epochs} ')
 print(f'      <>   batch size:      {batch_size}    ')
 print(f'      <>   image size:      {im_size}       ')
-print('-----------------------------------------')
+print('----------------------------------------')
 print()
 
 # define mini-batch gradient descent function

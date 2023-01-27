@@ -75,6 +75,36 @@ args    = parser.parse_args()
 # define batch multiply function
 #def batch_mul(a, b):
 #  return jax.vmap(lambda a, b: a * b)(a, b)
+"""
+new version
+def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
+    
+    Loss function for annealed score estimation
+    -------------------------------------------
+    Inputs: params:  - the model parameters
+            model:   - the score neural network
+            samples: - the samples from the data distribution
+            labels:  - the noise scale labels
+            sigmas:  - the noise scales
+            key:     - the jax random key
+
+    Output: loss - the loss value
+    -------------------------------------------
+    
+    used_sigmas = sigmas[labels].reshape((samples.shape[0], 
+                                          *([1] * len(samples.shape[1:]))))
+    #noise = batch_mul( jax.random.normal(key, samples.shape) , used_sigmas)
+    noise = jax.random.normal(key, samples.shape) * used_sigmas
+    perturbed_samples = samples + noise 
+    #target = -batch_mul(noise, 1. / (used_sigmas ** 2) )
+    target = -noise / (used_sigmas ** 2) 
+    scores = model.apply({'params': params}, perturbed_samples, labels) 
+    loss_diff = jnp.square(scores - target)
+    loss_batch = 0.5 * jnp.sum(loss_diff, axis=-1)
+    loss_batch_noise = loss_batch * used_sigmas ** 2
+    loss = jnp.mean(loss_batch_noise)
+    return loss
+"""
 
 def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     """
@@ -92,16 +122,12 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     """
     used_sigmas = sigmas[labels].reshape((samples.shape[0], 
                                           *([1] * len(samples.shape[1:]))))
-    #noise = batch_mul( jax.random.normal(key, samples.shape) , used_sigmas)
-    noise = jax.random.normal(key, samples.shape) * used_sigmas
-    perturbed_samples = samples + noise 
-    #target = -batch_mul(noise, 1. / (used_sigmas ** 2) )
-    target = -noise / (used_sigmas ** 2) 
-    scores = model.apply({'params': params}, perturbed_samples, labels) 
-    loss_diff = jnp.square(scores - target)
-    loss_batch = 0.5 * jnp.sum(loss_diff, axis=-1)
-    loss_batch_noise = loss_batch * used_sigmas ** 2
-    loss = jnp.mean(loss_batch_noise)
+    noise = jax.random.normal(key, samples.shape)
+    perturbed_samples = samples + noise * used_sigmas
+    target = -noise / used_sigmas**2
+    scores = model.apply({'params': params}, perturbed_samples, labels)
+    loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * used_sigmas**2 
+    loss = jnp.mean(loss)
     return loss
 
 # ------------------------------------------------------------ #
@@ -226,7 +252,6 @@ sigmas      = jnp.exp(jnp.linspace(jnp.log(sigma_begin),
                         jnp.log(sigma_end),num_scales))
 labels = jax.random.randint(key_seq, (len(training_data_init),), 
                             minval=0, maxval=len(sigmas), dtype=jnp.int32)
-print(f'sigams = {sigmas}')
 
 # model init variables
 input_shape = training_data_init.shape

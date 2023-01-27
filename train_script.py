@@ -72,6 +72,10 @@ args    = parser.parse_args()
 #  defined Song+2021 https://arxiv.org/abs/2006.09011 eqn: 2 #           
 # updated for latest JAX                                     #
 # ---------------------------------------------------------- #
+# define batch multiply function
+def batch_mul(a, b):
+  return jax.vmap(lambda a, b: a * b)(a, b)
+
 def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     """
     Loss function for annealed score estimation
@@ -88,11 +92,16 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     """
     used_sigmas = sigmas[labels].reshape((samples.shape[0], 
                                           *([1] * len(samples.shape[1:]))))
-    noise = jax.random.normal(key, samples.shape)
-    perturbed_samples = samples + noise * used_sigmas
-    target = -noise / used_sigmas**2
+    #noise = jax.random.normal(key, samples.shape)
+    noise = batch_mul(jax.random.normal(key, samples.shape), used_sigmas)
+    #perturbed_samples = samples + noise * used_sigmas
+    perturbed_samples = samples + noise 
+    #target = -noise / (used_sigmas**2)
+    target = -batch_mul(noise, 1. / (used_sigmas ** 2))
     scores = model.apply({'params': params}, perturbed_samples, labels) 
-    loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * used_sigmas**2 
+    loss = jnp.square(scores - target)
+    loss = jnp.mean(loss.reshape((loss.shape[0], -1)), axis=-1) * sigmas ** 2
+    #loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * used_sigmas**2 
     loss = jnp.mean(loss)
     return loss
 

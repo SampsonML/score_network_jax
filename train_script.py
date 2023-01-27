@@ -54,7 +54,7 @@ print('    `--. \ / __|/ _ \ |  __|/ _ \| . ` | / _ \| __|')
 print('   /\__/ /| (__| (_) || |  |  __/| |\  ||  __/| |_ ')
 print('   \____/  \___|\___/ |_|   \___|\_| \_/ \___| \__|')
 print('   Generating galaxies from noise with deep learning')     
-print('                 <>  Matt Sampson  <>')                                       
+print('                  <>  Matt Sampson  <>')                                       
 
 #print(f'Device used: {xla_bridge.get_backend().platform}')
 

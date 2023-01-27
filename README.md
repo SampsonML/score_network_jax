@@ -9,10 +9,12 @@ This score network is to be used as a galaxy morphology prior in the upcoming
 SCARLET 2 details: https://pmelchior.net/blog/scarlet2-redesign.html. Scarlet 2 code here: https://github.com/pmelchior/scarlet2
 
 ## Details:
-The two main scripts are scorenet_32.py and scorenet_64.py which are
-the training scripts for the 32 by 32 and 64 by 64 resolution scarlet
-models respectively. A template jobscript for use on the Princeton HPC Della
-is added. Training states will be auto-saved to ckpt_32 and ckpt_64 directories
+The neural network architecture "ScoreNet" is located in models.py
+The loss function is defined in the training script train_script.py which takes in command
+line inputs for the image size to train on. 
+Parameters are saved via pickling files and simply loading them in when needed.
+A template jobscript for use on the Princeton HPC Della
+is added. Training states will be auto-saved to params_32 and params_64 directories
 inline with the two different resolution trials.
 
 ## Useful papers

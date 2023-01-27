@@ -201,15 +201,15 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq      = jax.random.PRNGKey(42)               # random seed
-n_epochs     = 75                                   # number of epochs
-batch_size   = 1 #64                                   # batch size
+n_epochs     = 1                                   # number of epochs
+batch_size   = 64                                   # batch size
 lr           = 1e-4                                 # learning rate
 im_size      = args.size                            # image size
 training_data = createData(im_size)                 # create the training data
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-len_train = 1 #80000
+len_train = 64 * 5 #80000
 training_data = training_data[0:len_train] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = training_data[batch]
@@ -280,6 +280,7 @@ print()
 def mini_loop(training_data, params, model, batch_idx, batch_size, model_state, labels, sigmas, key_seq):
     # set up batch and noise samples
     batch_length = jnp.array(range(batch_idx*batch_size, (batch_idx+1)*batch_size))
+    print(f'batch_length: {batch_length}')
     samples = training_data[batch_length]
     labels = jax.random.randint(key_seq, (len(samples),), 
                             minval=0, maxval=len(sigmas), dtype=jnp.int32)

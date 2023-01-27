@@ -45,14 +45,14 @@ from jax.lib import xla_bridge
 import argparse
 
 # Scorenet asci art
-print(' _____                         _   _        _   ')
-print('/  ___|                       | \ | |      | |  ')
-print('\ `--.   ___  ___   _ __  ___ |  \| |  ___ | |_ ')
-print(' `--. \ / __|/ _ \ |  __|/ _ \| . ` | / _ \| __|')
-print('/\__/ /| (__| (_) || |  |  __/| |\  ||  __/| |_ ')
-print('\____/  \___|\___/ |_|   \___|\_| \_/ \___| \__|')
-print('Generating galaxies from noise with deep learning')     
-print('             <>  Matt Sampson  <>')                                       
+print('    _____                         _   _        _   ')
+print('   /  ___|                       | \ | |      | |  ')
+print('   \ `--.   ___  ___   _ __  ___ |  \| |  ___ | |_ ')
+print('    `--. \ / __|/ _ \ |  __|/ _ \| . ` | / _ \| __|')
+print('   /\__/ /| (__| (_) || |  |  __/| |\  ||  __/| |_ ')
+print('   \____/  \___|\___/ |_|   \___|\_| \_/ \___| \__|')
+print('   Generating galaxies from noise with deep learning')     
+print('                <>  Matt Sampson  <>')                                       
 
 #print(f'Device used: {xla_bridge.get_backend().platform}')
 
@@ -260,14 +260,14 @@ epoch_loss  = 0
 
 # print message with training details
 print()
-print('    ----------------------------------------')
-print(f'       training ScoreNet on {len(training_data)} images')
-print('    ----------------------------------------')
-print(f'          <>   noise scales:    {num_scales}  ')
-print(f'          <>   training epochs: {n_epochs} ')
-print(f'          <>   batch size:      {batch_size}    ')
-print(f'          <>   image size:      {im_size}       ')
-print('    ----------------------------------------')
+print('       ----------------------------------------')
+print(f'          training ScoreNet on {len(training_data)} images')
+print('       ----------------------------------------')
+print(f'             <>   noise scales:    {num_scales}  ')
+print(f'             <>   training epochs: {n_epochs} ')
+print(f'             <>   batch size:      {batch_size}    ')
+print(f'             <>   image size:      {im_size}       ')
+print('       ----------------------------------------')
 print()
 
 # define mini-batch gradient descent function

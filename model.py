@@ -344,14 +344,13 @@ class ScoreNet(nn.Module):
     sigma_begin   = 1                     # noise scale max
     sigma_end     = 1e-2                  # noise scale min
     num_scales    = 10                     # number of noise scales
-    sigmas        = jnp.exp(jnp.linspace(jnp.log(sigma_end), 
-                                jnp.log(sigma_begin),num_scales))
-    sigmas = jax.numpy.flip(sigmas)
+    sigmas        = jnp.exp(jnp.linspace(jnp.log(sigma_begin), 
+                                jnp.log(sigma_end), num_scales))
     nf            = 128                   # number of filters
     act           = nn.elu                # activation function
     normalizer    = InstanceNorm2dPlus    # normalization function
     interpolation = 'bilinear'            # interpolation method for upsample
-    data_centered = False                # whether data is already centered
+    data_centered = False                 # whether data is already centered
     
     # data already centered
     if not data_centered:

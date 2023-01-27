@@ -197,7 +197,7 @@ def plot_evolve(params,sample,step, labels):
 # model training and init params
 key_seq      = jax.random.PRNGKey(42)               # random seed
 n_epochs     = 25                                   # number of epochs
-batch_size   = 32                                   # batch size
+batch_size   = 64                                   # batch size
 lr           = 1e-4                                 # learning rate
 im_size      = args.size                            # image size
 training_data = createData(im_size)                 # create the training data
@@ -214,9 +214,8 @@ batch_per_epoch = len(training_data) // batch_size
 sigma_begin = 1
 sigma_end   = 0.01
 num_scales  = 10
-sigmas      = jnp.exp(jnp.linspace(jnp.log(sigma_end), 
-                        jnp.log(sigma_begin),num_scales))
-sigmas = jax.numpy.flip(sigmas)
+sigmas      = jnp.exp(jnp.linspace(jnp.log(sigma_begin), 
+                        jnp.log(sigma_end),num_scales))
 labels = jax.random.randint(key_seq, (len(training_data_init),), 
                             minval=0, maxval=len(sigmas), dtype=jnp.int32)
 
@@ -253,7 +252,7 @@ CKPT_DIR    = 'saved_params_' + str(im_size)
 if not os.path.exists(CKPT_DIR):
     os.makedirs(CKPT_DIR)
 filename = CKPT_DIR + '/scorenet_' + str(im_size) + '_state.pickle'
-train       = False #True
+train       = True
 plot_scores = False
 plot_loss   = True
 verbose     = False

@@ -200,8 +200,8 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq       = jax.random.PRNGKey(42)               # random seed
-n_epochs      = 25                                   # number of epochs
-batch_size    = 32                                   # batch size
+n_epochs      = 50                                   # number of epochs
+batch_size    = 64                                   # batch size
 lr            = 1e-4                                 # learning rate
 im_size       = args.size                            # image size
 training_data = createData(im_size)                  # create the training data
@@ -255,7 +255,6 @@ loss_fn = anneal_dsm_score_estimation
 CKPT_DIR    = 'saved_params_' + str(im_size)
 if not os.path.exists(CKPT_DIR):
     os.makedirs(CKPT_DIR)
-filename = CKPT_DIR + '/scorenet_' + str(im_size) + '_state.pickle'
 train       = True
 plot_scores = False
 plot_loss   = True
@@ -323,6 +322,7 @@ if train:
             best_params = params
             best_loss   = loss_vector[i]
             # testing saving training state
+            filename = CKPT_DIR + '/scorenet_' + str(im_size) + '_epoch_' + str(i) + '.pickle'
             with open(filename, 'wb') as handle:
                 pickle.dump(best_params, handle)
         epoch_loss = 0

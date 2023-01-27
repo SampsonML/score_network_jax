@@ -73,8 +73,8 @@ args    = parser.parse_args()
 # updated for latest JAX                                     #
 # ---------------------------------------------------------- #
 # define batch multiply function
-def batch_mul(a, b):
-  return jax.vmap(lambda a, b: a * b)(a, b)
+#def batch_mul(a, b):
+#  return jax.vmap(lambda a, b: a * b)(a, b)
 
 def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     """
@@ -92,9 +92,11 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     """
     used_sigmas = sigmas[labels].reshape((samples.shape[0], 
                                           *([1] * len(samples.shape[1:]))))
-    noise = batch_mul( jax.random.normal(key, samples.shape) , used_sigmas)
+    #noise = batch_mul( jax.random.normal(key, samples.shape) , used_sigmas)
+    noise = jax.random.normal(key, samples.shape) * used_sigmas
     perturbed_samples = samples + noise 
-    target = -batch_mul(noise, 1. / (used_sigmas ** 2) )
+    #target = -batch_mul(noise, 1. / (used_sigmas ** 2) )
+    target = -noise / (used_sigmas ** 2) 
     scores = model.apply({'params': params}, perturbed_samples, labels) 
     loss = jnp.square(scores - target)
     loss = jnp.mean(loss.reshape((loss.shape[0], -1)), axis=-1) * used_sigmas ** 2
@@ -147,8 +149,8 @@ def createData(im_size):
             data_padded_tmp = np.pad(dataset[i], ((1,2),(1,2)), 'constant')
             data_padded_61.append(data_padded_tmp)
         # add a loop to add 51 and 61 data together
-        for i in range(len(dataset_51)):
-            data_padded_61.append( dataset_51[i] )
+        #for i in range(len(dataset_51)):
+        #    data_padded_61.append( dataset_51[i] )
         dataset = np.array( data_padded_61 )
 
     # convert dataset to jax array
@@ -201,15 +203,15 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq      = jax.random.PRNGKey(42)               # random seed
-n_epochs     = 1                                   # number of epochs
-batch_size   = 64                                   # batch size
+n_epochs     = 50                                   # number of epochs
+batch_size   = 1 #64                                   # batch size
 lr           = 1e-4                                 # learning rate
 im_size      = args.size                            # image size
 training_data = createData(im_size)                 # create the training data
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-len_train = 64 * 5 #80000
+len_train = 1 #80000
 training_data = training_data[0:len_train] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = training_data[batch]
@@ -280,7 +282,6 @@ print()
 def mini_loop(training_data, params, model, batch_idx, batch_size, model_state, labels, sigmas, key_seq):
     # set up batch and noise samples
     batch_length = jnp.array(range(batch_idx*batch_size, (batch_idx+1)*batch_size))
-    print(f'batch_length: {batch_length}')
     samples = training_data[batch_length]
     labels = jax.random.randint(key_seq, (len(samples),), 
                             minval=0, maxval=len(sigmas), dtype=jnp.int32)

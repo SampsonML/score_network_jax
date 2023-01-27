@@ -251,7 +251,7 @@ CKPT_DIR    = 'saved_params_' + str(im_size)
 if not os.path.exists(CKPT_DIR):
     os.makedirs(CKPT_DIR)
 filename = CKPT_DIR + '/scorenet_' + str(im_size) + '_state.pickle'
-train       = True #True
+train       = False #True
 plot_scores = False
 plot_loss   = True
 verbose     = False

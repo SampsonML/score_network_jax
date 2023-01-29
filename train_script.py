@@ -209,8 +209,8 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq       = jax.random.PRNGKey(42)               # random seed
-n_epochs      = 5                                   # number of epochs
-batch_size    = 12                                   # batch size
+n_epochs      = 25                                   # number of epochs
+batch_size    = 6                                   # batch size
 lr            = 1e-4                                 # learning rate
 im_size       = args.size                            # image size
 training_data = createData(im_size)                  # create the training data

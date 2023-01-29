@@ -83,7 +83,7 @@ def ncsn_conv1x1(x, out_planes, stride=1, bias=True, dilation=1, init_scale=1.):
   return output
 
 # Changed bias to false
-def ncsn_conv3x3(x, out_planes, stride=1, bias=False, dilation=1, init_scale=1.):
+def ncsn_conv3x3(x, out_planes, stride=1, bias=True, dilation=1, init_scale=1.):
   """3x3 convolution with PyTorch initialization. Same as NCSNv1/NCSNv2."""
   kernel_init = jnn.initializers.variance_scaling(1 / 3 * init_scale, 'fan_in',
                                                   'uniform')
@@ -351,7 +351,7 @@ class ScoreNet(nn.Module):
     act           = nn.elu                # activation function
     normalizer    = InstanceNorm2dPlus    # normalization function
     interpolation = 'bilinear'            # interpolation method for upsample
-    data_centered = False                 # whether data is already centered
+    data_centered = True                 # whether data is already centered
     
     # data already centered
     if not data_centered:

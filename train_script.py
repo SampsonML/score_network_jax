@@ -200,7 +200,7 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq       = jax.random.PRNGKey(42)               # random seed
-n_epochs      = 80                                   # number of epochs
+n_epochs      = 60                                   # number of epochs
 batch_size    = 1 #64                                   # batch size
 lr            = 1e-4                                 # learning rate
 im_size       = args.size                            # image size
@@ -208,7 +208,7 @@ training_data = createData(im_size)                  # create the training data
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-len_train = 10#80000
+len_train = 50#80000
 training_data = training_data[0:len_train] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = training_data[batch]
@@ -385,7 +385,7 @@ def anneal_Langevin_dynamics(x_mod, scorenet, best_params, sigmas, rng, n_steps_
 # testing sampling #
 # ---------------- #
 n_samples      = 1                               # number of samples to generate
-sample_steps   = 40                              # number of steps to take at each noise level
+sample_steps   = 50                              # number of steps to take at each noise level
 shape_array    = jnp.array(range(0, n_samples))  # run Langevin dynamics on n_samples
 data_shape     = training_data[shape_array]           # get the data shape for starting image
 gaussian_noise = jax.random.normal(key_seq, shape=data_shape.shape) # Initial noise image/data

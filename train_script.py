@@ -200,7 +200,7 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq       = jax.random.PRNGKey(42)               # random seed
-n_epochs      = 60                                   # number of epochs
+n_epochs      = 25                                   # number of epochs
 batch_size    = 1 #64                                   # batch size
 lr            = 1e-4                                 # learning rate
 im_size       = args.size                            # image size
@@ -208,7 +208,7 @@ training_data = createData(im_size)                  # create the training data
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-len_train = 50#80000
+len_train = 5000#80000
 training_data = training_data[0:len_train] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = training_data[batch]
@@ -296,25 +296,12 @@ if train:
     loss_vector = np.zeros(n_epochs)
     for i in tqdm(range(n_epochs), desc='training model'):
         for batch_idx in range(batch_per_epoch):
+            
             params, loss , model_state = mini_loop(training_data, params, model, 
                                     batch_idx, batch_size, model_state, 
                                     labels, sigmas, key_seq)
             epoch_loss += loss
-            # set up batch and noise samples
-            """
-            batch_length = jnp.array(range(batch_idx*batch_size, (batch_idx+1)*batch_size))
-            samples = training_data[batch_length]
-            labels = jax.random.randint(key_seq, (len(samples),), 
-                            minval=0, maxval=len(sigmas), dtype=jnp.int32)
-      
-            # calculate gradients and loss
-            loss, grads = jax.value_and_grad(loss_fn)(params, model, samples, labels, sigmas, key_seq)
-            epoch_loss += loss
-      
-            # update the model params
-            updates, model_state = optimizer.update(grads, model_state)
-            params = optax.apply_updates(params, updates)
-            """
+            
         # store epoch loss and make plots
         epoch_loss = epoch_loss / (batch_per_epoch * batch_size)
         loss_vector[i] = epoch_loss

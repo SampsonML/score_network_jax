@@ -96,10 +96,10 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     perturbed_samples = samples + noise * used_sigmas
     target = -noise / used_sigmas**2
     scores = model.apply({'params': params}, perturbed_samples, labels)
-    loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * used_sigmas**2 
-    print('loss shape before mean:', loss.shape)
-    loss = jnp.mean(loss, axis=0)
-    print('loss shape after mean:', loss.shape)
+    #loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * used_sigmas**2 
+    losses = jnp.square(scores - target)
+    losses = 1 / 2. * jnp.sum(losses.reshape((losses.shape[0], -1)), axis=-1) * used_sigmas ** 2
+    loss = jnp.mean(losses)
     return loss
 
 # ------------------------------------------------------------ #
@@ -402,26 +402,49 @@ images, scores = anneal_Langevin_dynamics(  gaussian_noise,
 
 images_array = np.array(images)
 col_map = cmr.lilac
-fig , ax = plt.subplots(2,5,figsize=(16, 7), facecolor='white',dpi = 70)
+fig , ax = plt.subplots(2,5,figsize=(16, 16), facecolor='white',dpi = 250)
 plt_idx = int( len(images_array) / 10 )
 n_panels = 7
-step_array =  range(0, sample_steps, int(sample_steps / (n_panels - 1)) )
-for i in range(n_panels):
+step_array =  range(0, sample_steps, int(sample_steps / (n_panels**2 - 1)) )
+for i in range(n_panels**2):
     plt.subplots_adjust(wspace=0.05, hspace=0.05)
-    plt.subplot(1,n_panels,i + 1)
-    if (i < n_panels - 1):
+    plt.subplot(n_panels,n_panels,i + 1)
+    if (i < n_panels**2 - 1):
         step = step_array[i] * num_scales # note num_scales factor is for the number of noise levels
         name = 'step ' + str(int( step / num_scales ))
-        plt.title(name, fontsize = 24)
+        plt.title(name, fontsize = 16)
         plt.imshow(images_array[step], cmap=col_map)
         plt.axis('off')
     else: 
         name = 'final step ' + str(int( sample_steps ))
-        plt.title(name, fontsize = 24)
+        plt.title(name, fontsize = 16)
         plt.imshow(images_array[-1], cmap=col_map)
         plt.axis('off')
 plt.tight_layout()
 name = 'langevin_sampling_panels_res' + str(im_size) + '.png'
 plt.savefig(name,facecolor='white',dpi=300)
-plt.show()
+name = 'langevin_sampling_panels_res' + str(im_size) + '.pdf'
+plt.savefig(name,facecolor='white',dpi=300)
 
+
+# cool artistic plot
+fig , ax = plt.subplots(2,5,figsize=(16, 16), facecolor='white',dpi = 250)
+plt.style.use('dark_background')
+for i in range(n_panels**2):
+    plt.subplot(n_panels,n_panels,i + 1)
+    if (i < n_panels**2 - 1):
+        step = step_array[i] * num_scales # note num_scales factor is for the number of noise levels
+        name = 'step ' + str(int( step / num_scales ))
+        #plt.title(name, fontsize = 16)
+        plt.imshow(images_array[step], cmap=col_map) #, interpolation='hermite')
+        plt.axis('off')
+    else: 
+        name = 'final step ' + str(int( sample_steps ))
+        #plt.title(name, fontsize = 16)
+        plt.imshow(images_array[-1], cmap=col_map) #, interpolation='hermite')
+        plt.axis('off')
+plt.subplots_adjust(wspace=0, hspace=0)
+name = 'artistic_panels_res' + str(im_size) + '.png'
+plt.savefig(name,facecolor='black',dpi=300)
+name = 'artistic_panels_res' + str(im_size) + '.pdf'
+plt.savefig(name,facecolor='black',dpi=300)

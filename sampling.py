@@ -303,7 +303,6 @@ plt.savefig(name,facecolor='white',dpi=300)
 fig , ax = plt.subplots(2,5,figsize=(16, 16), facecolor='white',dpi = 250)
 plt.style.use('dark_background')
 for i in range(n_panels**2):
-    plt.subplots_adjust(wspace=0.00, hspace=0.00)
     plt.subplot(n_panels,n_panels,i + 1)
     if (i < n_panels**2 - 1):
         step = step_array[i] * num_scales # note num_scales factor is for the number of noise levels
@@ -316,10 +315,10 @@ for i in range(n_panels**2):
         plt.title(name, fontsize = 16)
         plt.imshow(images_array[-1], cmap=col_map) #, interpolation='hermite')
         plt.axis('off')
-plt.tight_layout()
+plt.subplots_adjust(wspace=0, hspace=0)
 name = 'artistic_panels_res' + str(im_size) + '.png'
-plt.savefig(name,facecolor='white',dpi=300)
+plt.savefig(name,facecolor='black',dpi=300)
 name = 'artistic_panels_res' + str(im_size) + '.pdf'
-plt.savefig(name,facecolor='white',dpi=300)
+plt.savefig(name,facecolor='black',dpi=300)
 
 

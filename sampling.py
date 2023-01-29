@@ -274,26 +274,28 @@ images, scores = anneal_Langevin_dynamics(  gaussian_noise,
 
 images_array = np.array(images)
 col_map = cmr.lilac
-fig , ax = plt.subplots(2,5,figsize=(16, 7), facecolor='white',dpi = 70)
+fig , ax = plt.subplots(2,5,figsize=(16, 16), facecolor='white',dpi = 250)
 plt_idx = int( len(images_array) / 10 )
 n_panels = 7
 step_array =  range(0, sample_steps, int(sample_steps / (n_panels**2 - 1)) )
-for i in range(n_panels):
+for i in range(n_panels**2):
     plt.subplots_adjust(wspace=0.05, hspace=0.05)
     plt.subplot(n_panels,n_panels,i + 1)
-    if (i < n_panels - 1):
+    if (i < n_panels**2 - 1):
         step = step_array[i] * num_scales # note num_scales factor is for the number of noise levels
         name = 'step ' + str(int( step / num_scales ))
-        plt.title(name, fontsize = 24)
+        plt.title(name, fontsize = 16)
         plt.imshow(images_array[step], cmap=col_map)
         plt.axis('off')
     else: 
         name = 'final step ' + str(int( sample_steps ))
-        plt.title(name, fontsize = 24)
+        plt.title(name, fontsize = 16)
         plt.imshow(images_array[-1], cmap=col_map)
         plt.axis('off')
 plt.tight_layout()
 name = 'langevin_sampling_panels_res' + str(im_size) + '.png'
+plt.savefig(name,facecolor='white',dpi=300)
+name = 'langevin_sampling_panels_res' + str(im_size) + '.pdf'
 plt.savefig(name,facecolor='white',dpi=300)
 plt.show()
 

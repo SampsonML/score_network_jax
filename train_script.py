@@ -97,7 +97,9 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     target = -noise / used_sigmas**2
     scores = model.apply({'params': params}, perturbed_samples, labels)
     loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * used_sigmas**2 
-    loss = jnp.mean(loss)
+    print('loss shape before mean:', loss.shape)
+    loss = jnp.mean(loss, axis=0)
+    print('loss shape after mean:', loss.shape)
     return loss
 
 # ------------------------------------------------------------ #
@@ -200,8 +202,8 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq       = jax.random.PRNGKey(42)               # random seed
-n_epochs      = 10                                   # number of epochs
-batch_size    = 1 #64                                   # batch size
+n_epochs      = 5                                   # number of epochs
+batch_size    = 10                                   # batch size
 lr            = 1e-4                                 # learning rate
 im_size       = args.size                            # image size
 training_data = createData(im_size)                  # create the training data
@@ -309,7 +311,7 @@ if train:
             best_params = params
             best_loss   = loss_vector[i]
             # testing saving training state
-            filename = CKPT_DIR + '/scorenet_' + str(im_size) + '_epoch_' + str(i) + '.pickle'
+            filename = CKPT_DIR + '/scorenet_batch_' + str(im_size) + '_epoch_' + str(i) + '.pickle'
             with open(filename, 'wb') as handle:
                 pickle.dump(best_params, handle)
         epoch_loss = 0

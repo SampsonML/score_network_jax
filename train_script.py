@@ -146,8 +146,8 @@ def createData(im_size):
             data_padded_tmp = np.pad(dataset[i], ((1,2),(1,2)), 'constant')
             data_padded_61.append(data_padded_tmp)
         # add a loop to add 51 and 61 data together
-        #for i in range(len(dataset_51)):
-        #    data_padded_61.append( dataset_51[i] )
+        for i in range(len(dataset_51)):
+            data_padded_61.append( dataset_51[i] )
         dataset = np.array( data_padded_61 )
 
     # convert dataset to jax array
@@ -200,15 +200,15 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq       = jax.random.PRNGKey(42)               # random seed
-n_epochs      = 50                                   # number of epochs
-batch_size    = 1 #64                                   # batch size
+n_epochs      = 40                                   # number of epochs
+batch_size    = 64                                   # batch size
 lr            = 1e-4                                 # learning rate
 im_size       = args.size                            # image size
 training_data = createData(im_size)                  # create the training data
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-len_train = 1 #80000
+len_train = 80000
 training_data = training_data[0:len_train] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = training_data[batch]
@@ -258,7 +258,7 @@ if not os.path.exists(CKPT_DIR):
 train       = True
 plot_scores = False
 plot_loss   = True
-verbose     = False
+verbose     = True
 best_loss   = 1e15
 epoch_loss  = 0
 

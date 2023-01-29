@@ -146,8 +146,8 @@ def createData(im_size):
             data_padded_tmp = np.pad(dataset[i], ((1,2),(1,2)), 'constant')
             data_padded_61.append(data_padded_tmp)
         # add a loop to add 51 and 61 data together
-        for i in range(len(dataset_51)):
-            data_padded_61.append( dataset_51[i] )
+        #for i in range(len(dataset_51)):
+        #    data_padded_61.append( dataset_51[i] )
         dataset = np.array( data_padded_61 )
 
     # convert dataset to jax array

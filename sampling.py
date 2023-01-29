@@ -312,7 +312,7 @@ for i in range(n_panels**2):
         plt.axis('off')
     else: 
         name = 'final step ' + str(int( sample_steps ))
-        plt.title(name, fontsize = 16)
+        #plt.title(name, fontsize = 16)
         plt.imshow(images_array[-1], cmap=col_map) #, interpolation='hermite')
         plt.axis('off')
 plt.subplots_adjust(wspace=0, hspace=0)

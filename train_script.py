@@ -232,13 +232,13 @@ num_scales  = 10
 sigmas      = jnp.exp(jnp.linspace(
                                 jnp.log(sigma_begin), 
                                 jnp.log(sigma_end), num_scales))
-print(f'shape of sigmas: {sigmas.shape}')
-sigmas = sigmas[::-1]
-print(f'new shape of sigmas: {sigmas.shape}')
+
 labels      = jax.random.choice(key_seq, num_scales, 
                             shape=(training_data.shape[0],))
-#labels = jax.random.randint(key_seq, (len(training_data_init),), 
-#                            minval=0, maxval=len(sigmas), dtype=jnp.int32)
+print(f'labels shape: {labels.shape}')
+labels_old = jax.random.randint(key_seq, (len(training_data_init),), 
+                            minval=0, maxval=len(sigmas), dtype=jnp.int32)
+print(f'labels_old shape: {labels_old.shape}')
 
 # model init variables
 input_shape = training_data_init.shape

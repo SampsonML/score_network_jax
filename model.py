@@ -351,7 +351,7 @@ class ScoreNet(nn.Module):
     act           = nn.elu                # activation function
     normalizer    = InstanceNorm2dPlus    # normalization function
     interpolation = 'bilinear'            # interpolation method for upsample
-    data_centered = True                 # whether data is already centered
+    data_centered = False                 # whether data is already centered
     
     # data already centered
     if not data_centered:

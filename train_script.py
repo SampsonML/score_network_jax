@@ -90,38 +90,18 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     Output: loss - the loss value
     -------------------------------------------
     """
-    #used_sigmas = sigmas[labels].reshape((samples.shape[0], 
-    #                                      *([1] * len(samples.shape[1:]))))
-    #noise = jax.random.normal(key, samples.shape) * used_sigmas
-    #noise = batch_mul(jax.random.normal(key, samples.shape), used_sigmas)
-    #perturbed_samples = samples + noise 
-    #target = -noise / (used_sigmas**2)
-    #scores = model.apply({'params': params}, perturbed_samples, labels)
-    #loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * used_sigmas**2 
-    #loss = 1 / 2. * jnp.sum((jnp.square(scores - target)), axis=-1) * used_sigmas**2 
-    #target = -batch_mul(noise, 1. / (used_sigmas ** 2))
-    #losses = jnp.square(scores - target)
-    #losses = jnp.sum(losses.reshape((losses.shape[0], -1)), axis=-1) * used_sigmas ** 2
-    #loss = jnp.mean(losses)
-    #return loss
     used_sigmas = sigmas[labels].reshape((samples.shape[0], 
                                           *([1] * len(samples.shape[1:]))))
-    noise = jax.random.normal(key, samples.shape)
-    perturbed_samples = samples + noise * used_sigmas
-    target = -noise / used_sigmas
+    noise = jax.random.normal(key, samples.shape) * used_sigmas
+    perturbed_samples = samples + noise 
+    target = - 1 / (used_sigmas**2) * noise
     scores = model.apply({'params': params}, perturbed_samples, labels)
     # reshape:
     target = target.reshape((target.shape[0], -1))
     scores = scores.reshape((scores.shape[0], -1))
-    used_sigmas = jnp.squeeze(used_sigmas,-1)
-    print(f'used sigmas {used_sigmas.shape}')
-    print(f'scores shape: {scores.shape}')
-    print(f'target shape: {target.shape}')
     # calculate loss:
     #loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * used_sigmas**2 
     loss = 0.5 * jnp.sum((scores - target)**2 , axis=-1) * used_sigmas**2 
-    #print(f'loss: {loss}')
-    #print(f'loss shape: {loss.shape}')
     loss = jnp.mean(loss)
     return loss
     

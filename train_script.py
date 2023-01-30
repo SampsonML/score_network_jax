@@ -246,7 +246,7 @@ init_model_state, initial_params = variables.pop('params')
 optimizer = optax.adam( learning_rate=lr, 
                         b1=0.9, 
                         b2=0.999, 
-                        eps=1e-08, 
+                        eps=1e-8, 
                         eps_root=0.0, 
                         mu_dtype=None ) 
 

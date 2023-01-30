@@ -345,7 +345,8 @@ class ScoreNet(nn.Module):
     sigma_begin   = 1                     # noise scale max
     sigma_end     = 1e-2                  # noise scale min
     num_scales    = 10                     # number of noise scales
-    sigmas        = jnp.exp(jnp.linspace(jnp.log(sigma_begin), 
+    sigmas        = jnp.exp(jnp.linspace(
+                                jnp.log(sigma_begin), 
                                 jnp.log(sigma_end), num_scales))
     nf            = 128                   # number of filters
     act           = nn.elu                # activation function

@@ -110,9 +110,12 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     #noise = jax.random.normal(key, samples.shape) * used_sigmas
     noise = jax.random.normal(key, samples.shape) *  used_sigmas
     perturbed_samples = samples + noise 
-    LHS = model.apply({'params': params}, perturbed_samples, labels) * used_sigmas
+    scores = model.apply({'params': params}, perturbed_samples, labels) 
+    LHS = scores * used_sigmas
     RHS = noise / used_sigmas
-    loss = 1 / 2. * jnp.sum((jnp.square(LHS - RHS)), axis=-1) ** 2
+    middle = LHS + RHS
+    middle = middle.reshape((middle.shape[0], -1))
+    loss = 0.5 * jnp.mean((jnp.square(middle)), axis=-1) ** 2
     loss = jnp.mean(loss, axis=0)
     return loss
     

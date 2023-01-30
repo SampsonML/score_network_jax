@@ -205,15 +205,15 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq       = jax.random.PRNGKey(42)               # random seed
-n_epochs      = 10                                   # number of epochs
-batch_size    = 6 #32                                   # batch size
+n_epochs      = 15                                   # number of epochs
+batch_size    = 32 #32                                   # batch size
 lr            = 1e-4                                 # learning rate
 im_size       = args.size                            # image size
 training_data = createData(im_size)                  # create the training data
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-len_train = 120 #80000
+len_train = 2500 #80000
 training_data = training_data[0:len_train] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = training_data[batch]
@@ -314,7 +314,7 @@ if train:
             best_params = params
             best_loss   = loss_vector[i]
             # testing saving training state
-            filename = CKPT_DIR + '/scorenet_batch_' + str(im_size) + '_epoch_' + str(i) + '.pickle'
+            filename = CKPT_DIR + '/scorenet_' + str(im_size) + '_epoch_' + str(i) + '.pickle'
             with open(filename, 'wb') as handle:
                 pickle.dump(best_params, handle)
         epoch_loss = 0

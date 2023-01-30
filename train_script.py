@@ -234,7 +234,7 @@ sigmas      = jnp.exp(jnp.linspace(
                                 jnp.log(sigma_end), num_scales))
 
 labels      = jax.random.choice(key_seq, num_scales, 
-                            shape=(training_data.shape[0],))
+                            shape=(training_data_init.shape[0],))
 print(f'labels shape: {labels.shape}')
 labels_old = jax.random.randint(key_seq, (len(training_data_init),), 
                             minval=0, maxval=len(sigmas), dtype=jnp.int32)

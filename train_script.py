@@ -229,8 +229,8 @@ labels      = jax.random.choice(key_seq, num_scales,
                             shape=(training_data_init.shape[0],))
 
 # model init variables
-input_shape = training_data_init.shape
-input_shape = input_shape = (jax.local_device_count(), im_size, im_size, 1)
+#input_shape = training_data_init.shape
+input_shape = input_shape = (batch_size, im_size, im_size, 1)
 label_shape = input_shape[:1] #labels.shape
 fake_input  = jnp.zeros(input_shape)
 fake_label  = jnp.zeros(label_shape, dtype=jnp.int32)

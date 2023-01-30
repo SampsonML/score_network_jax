@@ -99,8 +99,8 @@ def anneal_dsm_score_estimation(params, model, samples, sigmas, key):
     target = - noise / (used_sigmas**2) 
     scores = model.apply({'params': params}, perturbed_samples, labels)
     # reshape:
-    target = target.reshape((target.shape[0], -1))
-    scores = scores.reshape((scores.shape[0], -1))
+    #target = target.reshape((target.shape[0], -1))
+    #scores = scores.reshape((scores.shape[0], -1))
     # calculate loss:
     #loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * used_sigmas**2 
     #loss = 0.5 * jnp.sum((scores - target)**2 , axis=-1) * used_sigmas**2 
@@ -235,10 +235,6 @@ sigmas      = jnp.exp(jnp.linspace(
 
 labels      = jax.random.choice(key_seq, num_scales, 
                             shape=(training_data_init.shape[0],))
-print(f'labels shape: {labels.shape}')
-labels_old = jax.random.randint(key_seq, (len(training_data_init),), 
-                            minval=0, maxval=len(sigmas), dtype=jnp.int32)
-print(f'labels_old shape: {labels_old.shape}')
 
 # model init variables
 input_shape = training_data_init.shape

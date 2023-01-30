@@ -114,6 +114,9 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     target = target.reshape((target.shape[0], -1))
     scores = scores.reshape((scores.shape[0], -1))
     used_sigmas = jnp.squeeze(used_sigmas,-1)
+    print(f'used sigmas {used_sigmas.shape}')
+    print(f'scores shape: {scores.shape}')
+    print(f'target shape: {target.shape}')
     # calculate loss:
     loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * used_sigmas**2 
     print(f'loss shape: {loss.shape}')

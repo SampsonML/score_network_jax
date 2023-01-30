@@ -90,20 +90,32 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     Output: loss - the loss value
     -------------------------------------------
     """
+    #used_sigmas = sigmas[labels].reshape((samples.shape[0], 
+    #                                      *([1] * len(samples.shape[1:]))))
+    #noise = jax.random.normal(key, samples.shape) * used_sigmas
+    #noise = batch_mul(jax.random.normal(key, samples.shape), used_sigmas)
+    #perturbed_samples = samples + noise 
+    #target = -noise / (used_sigmas**2)
+    #scores = model.apply({'params': params}, perturbed_samples, labels)
+    #loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * used_sigmas**2 
+    #loss = 1 / 2. * jnp.sum((jnp.square(scores - target)), axis=-1) * used_sigmas**2 
+    #target = -batch_mul(noise, 1. / (used_sigmas ** 2))
+    #losses = jnp.square(scores - target)
+    #losses = jnp.sum(losses.reshape((losses.shape[0], -1)), axis=-1) * used_sigmas ** 2
+    #loss = jnp.mean(losses)
+    #return loss
+    
     used_sigmas = sigmas[labels].reshape((samples.shape[0], 
                                           *([1] * len(samples.shape[1:]))))
     #noise = jax.random.normal(key, samples.shape) * used_sigmas
-    noise = batch_mul(jax.random.normal(key, samples.shape), used_sigmas)
+    noise = jax.random.normal(key, samples.shape) *  used_sigmas
     perturbed_samples = samples + noise 
-    #target = -noise / (used_sigmas**2)
-    scores = model.apply({'params': params}, perturbed_samples, labels)
-    #loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * used_sigmas**2 
-    #loss = 1 / 2. * jnp.sum((jnp.square(scores - target)), axis=-1) * used_sigmas**2 
-    target = -batch_mul(noise, 1. / (used_sigmas ** 2))
-    losses = jnp.square(scores - target)
-    losses = jnp.sum(losses.reshape((losses.shape[0], -1)), axis=-1) * used_sigmas ** 2
-    loss = jnp.mean(losses)
+    LHS = model.apply({'params': params}, perturbed_samples, labels) * used_sigmas
+    RHS = noise / used_sigmas
+    loss = 1 / 2. * jnp.sum((jnp.square(LHS - RHS)), axis=-1) ** 2
+    loss - jnp.mean(loss, axis=0)
     return loss
+    
 
 # ------------------------------------------------------------ #
 # The training of the NCSNv2 model. Here define the training   #
@@ -205,15 +217,15 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq       = jax.random.PRNGKey(42)               # random seed
-n_epochs      = 15                                   # number of epochs
-batch_size    = 32 #32                                   # batch size
+n_epochs      = 45                                   # number of epochs
+batch_size    = 1 #32                                   # batch size
 lr            = 1e-4                                 # learning rate
 im_size       = args.size                            # image size
 training_data = createData(im_size)                  # create the training data
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-len_train = 2500 #80000
+len_train = 1 #80000
 training_data = training_data[0:len_train] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = training_data[batch]
@@ -314,7 +326,7 @@ if train:
             best_params = params
             best_loss   = loss_vector[i]
             # testing saving training state
-            filename = CKPT_DIR + '/scorenet_' + str(im_size) + '_epoch_' + str(i) + '.pickle'
+            filename = CKPT_DIR + '/scorenet_MATT' + str(im_size) + '_epoch_' + str(i) + '.pickle'
             with open(filename, 'wb') as handle:
                 pickle.dump(best_params, handle)
         epoch_loss = 0

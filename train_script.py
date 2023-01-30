@@ -76,7 +76,7 @@ args    = parser.parse_args()
 def batch_mul(a, b):
   return jax.vmap(lambda a, b: a * b)(a, b)
 
-def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
+def anneal_dsm_score_estimation(params, model, samples, sigmas, key):
     """
     Loss function for annealed score estimation
     -------------------------------------------
@@ -90,19 +90,24 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     Output: loss - the loss value
     -------------------------------------------
     """
-    used_sigmas = sigmas[labels].reshape((samples.shape[0], 
-                                          *([1] * len(samples.shape[1:]))))
+    labels = jax.random.choice(key_seq, num_scales, shape=(samples.shape[0],))
+    #used_sigmas = sigmas[labels].reshape((samples.shape[0], 
+    #                                      *([1] * len(samples.shape[1:]))))
+    used_sigmas = sigmas[labels] 
     noise = jax.random.normal(key, samples.shape) * used_sigmas
     perturbed_samples = samples + noise 
-    target = - 1 / (used_sigmas**2) * noise
+    target = - noise / (used_sigmas**2) 
     scores = model.apply({'params': params}, perturbed_samples, labels)
     # reshape:
     target = target.reshape((target.shape[0], -1))
     scores = scores.reshape((scores.shape[0], -1))
     # calculate loss:
     #loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * used_sigmas**2 
-    loss = 0.5 * jnp.sum((scores - target)**2 , axis=-1) * used_sigmas**2 
-    loss = jnp.mean(loss)
+    #loss = 0.5 * jnp.sum((scores - target)**2 , axis=-1) * used_sigmas**2 
+    #loss = jnp.mean(loss)
+    losses = jnp.square(scores - target)
+    losses = 0.5 * jnp.sum(losses.reshape((losses.shape[0], -1)), axis=-1) * sigmas ** 2
+    loss = jnp.mean(losses)
     return loss
     
 
@@ -224,10 +229,13 @@ batch_per_epoch = len(training_data) // batch_size
 sigma_begin = 1
 sigma_end   = 0.01
 num_scales  = 10
-sigmas      = jnp.exp(jnp.linspace(jnp.log(sigma_begin), 
-                        jnp.log(sigma_end),num_scales))
-labels = jax.random.randint(key_seq, (len(training_data_init),), 
-                            minval=0, maxval=len(sigmas), dtype=jnp.int32)
+sigmas      = jnp.exp(jnp.linspace(
+                                jnp.log(sigma_begin), 
+                                jnp.log(sigma_end), num_scales))
+labels      = jax.random.choice(key_seq, num_scales, 
+                            shape=(training_data.shape[0],))
+#labels = jax.random.randint(key_seq, (len(training_data_init),), 
+#                            minval=0, maxval=len(sigmas), dtype=jnp.int32)
 
 # model init variables
 input_shape = training_data_init.shape
@@ -285,11 +293,11 @@ def mini_loop(training_data, params, model, batch_idx, batch_size, model_state, 
     # set up batch and noise samples
     batch_length = jnp.array(range(batch_idx*batch_size, (batch_idx+1)*batch_size))
     samples = training_data[batch_length]
-    labels = jax.random.randint(key_seq, (len(samples),), 
-                            minval=0, maxval=len(sigmas), dtype=jnp.int32)
-
+    #labels = jax.random.randint(key_seq, (len(samples),), 
+    #                        minval=0, maxval=len(sigmas), dtype=jnp.int32)
+    #labels = jax.random.choice(key_seq, num_scales, shape=(samples.shape[0],))
     # calculate gradients and loss
-    loss, grads = jax.value_and_grad(loss_fn)(params, model, samples, labels, sigmas, key_seq)
+    loss, grads = jax.value_and_grad(loss_fn)(params, model, samples, sigmas, key_seq)
     # update the model params
     updates, model_state = optimizer.update(grads, model_state)
     params = optax.apply_updates(params, updates)

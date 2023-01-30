@@ -91,20 +91,11 @@ def anneal_dsm_score_estimation(params, model, samples, sigmas, key):
     -------------------------------------------
     """
     labels = jax.random.choice(key_seq, num_scales, shape=(samples.shape[0],))
-    #used_sigmas = sigmas[labels].reshape((samples.shape[0], 
-    #                                      *([1] * len(samples.shape[1:]))))
     used_sigmas = sigmas[labels] 
     noise = jax.random.normal(key, samples.shape) * used_sigmas
     perturbed_samples = samples + noise 
     target = - noise / (used_sigmas**2) 
     scores = model.apply({'params': params}, perturbed_samples, labels)
-    # reshape:
-    #target = target.reshape((target.shape[0], -1))
-    #scores = scores.reshape((scores.shape[0], -1))
-    # calculate loss:
-    #loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * used_sigmas**2 
-    #loss = 0.5 * jnp.sum((scores - target)**2 , axis=-1) * used_sigmas**2 
-    #loss = jnp.mean(loss)
     losses = jnp.square(scores - target)
     losses = 0.5 * jnp.sum(losses.reshape((losses.shape[0], -1)), axis=-1) * sigmas ** 2
     loss = jnp.mean(losses)
@@ -238,7 +229,7 @@ labels      = jax.random.choice(key_seq, num_scales,
 
 # model init variables
 input_shape = training_data_init.shape
-label_shape = labels.shape
+label_shape = input_shape[:1] #labels.shape
 fake_input  = jnp.zeros(input_shape)
 fake_label  = jnp.zeros(label_shape, dtype=jnp.int32)
 params_rng, dropout_rng = jax.random.split(key_seq)
@@ -293,7 +284,6 @@ def mini_loop(training_data, params, model, batch_idx, batch_size, model_state, 
     batch_length = jnp.array(range(batch_idx*batch_size, (batch_idx+1)*batch_size))
     samples = training_data[batch_length]
     print(f'shape of samples: {samples.shape}')
-    print(f'params shape: {params.shape}')
     #labels = jax.random.randint(key_seq, (len(samples),), 
     #                        minval=0, maxval=len(sigmas), dtype=jnp.int32)
     #labels = jax.random.choice(key_seq, num_scales, shape=(samples.shape[0],))

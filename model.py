@@ -410,4 +410,6 @@ class ScoreNet(nn.Module):
     used_sigmas = sigmas[labels].reshape(
         (x.shape[0], *([1] * len(x.shape[1:]))))
     
-    return h / used_sigmas
+    h = h / used_sigmas
+    
+    return h 

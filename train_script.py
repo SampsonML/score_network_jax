@@ -73,8 +73,8 @@ args    = parser.parse_args()
 # updated for latest JAX                                     #
 # ---------------------------------------------------------- #
 # define batch multiply function
-#def batch_mul(a, b):
-#  return jax.vmap(lambda a, b: a * b)(a, b)
+def batch_mul(a, b):
+  return jax.vmap(lambda a, b: a * b)(a, b)
 
 def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     """
@@ -92,17 +92,17 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     """
     used_sigmas = sigmas[labels].reshape((samples.shape[0], 
                                           *([1] * len(samples.shape[1:]))))
-    noise = jax.random.normal(key, samples.shape) * used_sigmas
+    #noise = jax.random.normal(key, samples.shape) * used_sigmas
+    noise = batch_mul(jax.random.normal(key, samples.shape), used_sigmas)
     perturbed_samples = samples + noise 
-    target = -noise / (used_sigmas**2)
+    #target = -noise / (used_sigmas**2)
     scores = model.apply({'params': params}, perturbed_samples, labels)
-    loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * used_sigmas**2 
+    #loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * used_sigmas**2 
     #loss = 1 / 2. * jnp.sum((jnp.square(scores - target)), axis=-1) * used_sigmas**2 
-    #losses = jnp.square(scores - target)
-    #losses = losses.reshape((losses.shape[0], -1))
-    #losses = jnp.sum(losses, axis=-1)
-    #losses = 0.5 * losses * used_sigmas ** 2
-    loss = jnp.mean(loss)
+    target = -batch_mul(noise, 1. / (used_sigmas ** 2))
+    losses = jnp.square(scores - target)
+    losses = jnp.mean(losses.reshape((losses.shape[0], -1)), axis=-1) * used_sigmas ** 2
+    loss = jnp.mean(losses)
     return loss
 
 # ------------------------------------------------------------ #
@@ -205,7 +205,7 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq       = jax.random.PRNGKey(42)               # random seed
-n_epochs      = 40                                   # number of epochs
+n_epochs      = 50                                   # number of epochs
 batch_size    = 1 #32                                   # batch size
 lr            = 1e-4                                 # learning rate
 im_size       = args.size                            # image size

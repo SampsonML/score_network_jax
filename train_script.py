@@ -101,7 +101,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     #loss = 1 / 2. * jnp.sum((jnp.square(scores - target)), axis=-1) * used_sigmas**2 
     target = -batch_mul(noise, 1. / (used_sigmas ** 2))
     losses = jnp.square(scores - target)
-    losses = jnp.mean(losses.reshape((losses.shape[0], -1)), axis=-1) * used_sigmas ** 2
+    losses = jnp.sum(losses.reshape((losses.shape[0], -1)), axis=-1) * used_sigmas ** 2
     loss = jnp.mean(losses)
     return loss
 
@@ -213,7 +213,7 @@ training_data = createData(im_size)                  # create the training data
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-len_train = 1#000 #80000
+len_train = 100 #80000
 training_data = training_data[0:len_train] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = training_data[batch]

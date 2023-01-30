@@ -238,9 +238,9 @@ params_rng, dropout_rng = jax.random.split(key_seq)
 # define and initialise model
 model = ScoreNet()
 # JIT compile the model for faster training
-variables = model.init({'params': params_rng}, fake_input, fake_label)
-init_model_state, initial_params = variables.pop('params')
-
+params = model.init({'params': params_rng}, fake_input, fake_label)
+#init_model_state, initial_params = variables.pop('params')
+print(f'params: {params}')
 # define optimiser using latest flax standards
 optimizer = optax.adam( learning_rate=lr, 
                         b1=0.9, 
@@ -250,7 +250,7 @@ optimizer = optax.adam( learning_rate=lr,
                         mu_dtype=None ) 
 
 # initialise model state
-params = initial_params
+#params = initial_params
 model_state = optimizer.init(params)
 
 # name loss function
@@ -284,10 +284,6 @@ def mini_loop(training_data, params, model, batch_idx, batch_size, model_state, 
     # set up batch and noise samples
     batch_length = jnp.array(range(batch_idx*batch_size, (batch_idx+1)*batch_size))
     samples = training_data[batch_length]
-    print(f'shape of samples: {samples.shape}')
-    #labels = jax.random.randint(key_seq, (len(samples),), 
-    #                        minval=0, maxval=len(sigmas), dtype=jnp.int32)
-    #labels = jax.random.choice(key_seq, num_scales, shape=(samples.shape[0],))
     # calculate gradients and loss
     loss, grads = jax.value_and_grad(loss_fn)(params, model, samples, sigmas, key_seq)
     # update the model params

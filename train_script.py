@@ -97,11 +97,12 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     target = -noise / used_sigmas**2
     scores = model.apply({'params': params}, perturbed_samples, labels)
     #loss = 1 / 2. * ((scores - target) ** 2).sum(axis=-1) * used_sigmas**2 
-    losses = jnp.square(scores - target)
-    losses = losses.reshape((losses.shape[0], -1))
-    losses = jnp.sum(losses, axis=-1)
-    losses = 0.5 * losses * used_sigmas ** 2
-    loss = jnp.mean(losses)
+    loss = 1 / 2. * jnp.sum((jnp.square(scores - target)), axis=-1) * used_sigmas**2 
+    #losses = jnp.square(scores - target)
+    #losses = losses.reshape((losses.shape[0], -1))
+    #losses = jnp.sum(losses, axis=-1)
+    #losses = 0.5 * losses * used_sigmas ** 2
+    loss = jnp.mean(loss, axis=0)
     return loss
 
 # ------------------------------------------------------------ #
@@ -204,15 +205,15 @@ def plot_evolve(params,sample,step, labels):
 
 # model training and init params
 key_seq       = jax.random.PRNGKey(42)               # random seed
-n_epochs      = 25                                   # number of epochs
-batch_size    = 6                                   # batch size
+n_epochs      = 55                                   # number of epochs
+batch_size    = 1 #32                                   # batch size
 lr            = 1e-4                                 # learning rate
 im_size       = args.size                            # image size
 training_data = createData(im_size)                  # create the training data
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-len_train = 12#80000
+len_train = 1#000 #80000
 training_data = training_data[0:len_train] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = training_data[batch]

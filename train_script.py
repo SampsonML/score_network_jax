@@ -95,7 +95,8 @@ def anneal_dsm_score_estimation(params, model, samples, sigmas, key):
     noise = jax.random.normal(key, samples.shape) * used_sigmas
     perturbed_samples = samples + noise 
     target = - noise / (used_sigmas**2) 
-    scores = model.apply({'params': params}, perturbed_samples, labels)
+    #scores = model.apply({'params': params}, perturbed_samples, labels)
+    scores = model.apply(params, perturbed_samples, labels)
     losses = jnp.square(scores - target)
     losses = 0.5 * jnp.sum(losses.reshape((losses.shape[0], -1)), axis=-1) * sigmas ** 2
     loss = jnp.mean(losses)
@@ -240,7 +241,6 @@ model = ScoreNet()
 # JIT compile the model for faster training
 params = model.init({'params': params_rng}, fake_input, fake_label)
 #init_model_state, initial_params = variables.pop('params')
-print(f'params: {params}')
 # define optimiser using latest flax standards
 optimizer = optax.adam( learning_rate=lr, 
                         b1=0.9, 

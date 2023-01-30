@@ -113,7 +113,7 @@ def anneal_dsm_score_estimation(params, model, samples, labels, sigmas, key):
     LHS = model.apply({'params': params}, perturbed_samples, labels) * used_sigmas
     RHS = noise / used_sigmas
     loss = 1 / 2. * jnp.sum((jnp.square(LHS - RHS)), axis=-1) ** 2
-    loss - jnp.mean(loss, axis=0)
+    loss = jnp.mean(loss, axis=0)
     return loss
     
 
@@ -326,7 +326,7 @@ if train:
             best_params = params
             best_loss   = loss_vector[i]
             # testing saving training state
-            filename = CKPT_DIR + '/scorenet_MATT' + str(im_size) + '_epoch_' + str(i) + '.pickle'
+            filename = CKPT_DIR + '/scorenet_MATT_' + str(im_size) + '_epoch_' + str(i) + '.pickle'
             with open(filename, 'wb') as handle:
                 pickle.dump(best_params, handle)
         epoch_loss = 0

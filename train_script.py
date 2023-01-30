@@ -212,14 +212,14 @@ def plot_evolve(params,sample,step, labels):
 # model training and init params
 key_seq       = jax.random.PRNGKey(42)               # random seed
 n_epochs      = 50                                   # number of epochs
-batch_size    = 1#32                                   # batch size
+batch_size    = 32                                   # batch size
 lr            = 1e-4                                 # learning rate
 im_size       = args.size                            # image size
 training_data = createData(im_size)                  # create the training data
 
 # construct the training data 
 # for testing limit size until GPU HPC is available
-len_train = 1#32 * 50
+len_train = 32 * 50
 training_data = training_data[0:len_train] # DELETE for full training
 batch = jnp.array(range(0, batch_size))
 training_data_init = training_data[batch]
@@ -288,10 +288,12 @@ print('       ----------------------------------------')
 print()
 
 # define mini-batch gradient descent function
-def mini_loop(training_data, params, model, batch_idx, batch_size, model_state, labels, sigmas, key_seq):
+def mini_loop(training_data, params, model, batch_idx, batch_size, model_state, sigmas, key_seq):
     # set up batch and noise samples
     batch_length = jnp.array(range(batch_idx*batch_size, (batch_idx+1)*batch_size))
     samples = training_data[batch_length]
+    print(f'shape of samples: {samples.shape}')
+    print(f'params shape: {params.shape}')
     #labels = jax.random.randint(key_seq, (len(samples),), 
     #                        minval=0, maxval=len(sigmas), dtype=jnp.int32)
     #labels = jax.random.choice(key_seq, num_scales, shape=(samples.shape[0],))
@@ -312,7 +314,7 @@ if train:
             
             params, loss , model_state = mini_loop(training_data, params, model, 
                                     batch_idx, batch_size, model_state, 
-                                    labels, sigmas, key_seq)
+                                    sigmas, key_seq)
             epoch_loss += loss
             
         # store epoch loss and make plots
